@@ -1,0 +1,13 @@
+[package]
+name = "basic_trie"
+version = "0.0.1"
+edition = "2021"
+authors = ["LukasCobbler"]
+license-file = "LICENSE"
+readme = "README.md"
+keywords = ["trie"]
+description = "A simple Trie implementation in Rust"
+repository = "https://github.com/lukascobbler/basic_trie"
+
+[dependencies]
+unicode-segmentation = "1.10.1"
