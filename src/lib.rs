@@ -420,6 +420,6 @@ mod tests {
 
         trie.remove_words_from_prefix("e");
 
-        assert_eq!(Vec::<&i32>::new(), trie.find_data_of_word("", true).unwrap());
+        assert_eq!(None, trie.find_data_of_word("", true));
     }
 }

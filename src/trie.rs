@@ -6,31 +6,24 @@ use std::cmp::Ordering;
 use std::collections::{HashMap};
 use std::fmt::Debug;
 
-#[doc(hidden)]
 /// Singular trie node that represents one character,
 /// it's children and data associated with the character
 /// if it's a word.
 #[derive(Debug)]
 struct TrieNode<'a, D> {
-    character: &'a str,
     children: HashMap<&'a str, TrieNode<'a, D>>,
-    is_word: bool,
-    associated_data: Vec<D>
+    associated_data: Option<Vec<D>>
 }
 
 impl<'a, D> TrieNode<'a, D> {
-    #[doc(hidden)]
     /// Returns a new instance of a TrieNode with the given character.
-    fn new(character: &'a str) -> Self {
+    fn new() -> Self {
         TrieNode {
-            character,
             children: HashMap::new(),
-            is_word: false,
-            associated_data: Vec::new()
+            associated_data: None
         }
     }
 
-    #[doc(hidden)]
     /// Recursive function for getting the number of words from a given node.
     fn number_of_words(&self) -> usize {
         self.children.values()
@@ -38,29 +31,27 @@ impl<'a, D> TrieNode<'a, D> {
                 |x| x.number_of_words()
             )
             .sum::<usize>() +
-            (self.is_word == true) as usize
+            (self.associated_data.is_some()) as usize
     }
 
-    #[doc(hidden)]
     /// Recursive function for inserting found words from the given node and
     /// given starting substring.
     fn find_words(&self, substring: &str, found_words: &mut Vec<String>) {
-        if self.is_word {
+        if self.associated_data.is_some() {
             found_words.push(substring.to_string());
         }
 
-        self.children.values().for_each(|x|
-            x.find_words(&(substring.to_owned() + x.character), found_words)
+        self.children.iter().for_each(|(&character, node)|
+            node.find_words(&(substring.to_owned() + character), found_words)
         );
     }
 
-    #[doc(hidden)]
     /// The recursive function for finding a vector of shortest and longest words in the TrieNode consists of:
     /// - the DFS tree traversal part for getting to every child node;
     /// - matching lengths of found words in combination with the passed ordering.
     fn words_min_max(&self, substring: &str, found_words: &mut Vec<String>, ord: Ordering) {
         'word: {
-            if self.is_word {
+            if self.associated_data.is_some() {
                 if let Some(found) = found_words.first() {
                     match substring.len().cmp(&found.len()) {
                         Ordering::Less if ord == Ordering::Less => {
@@ -77,12 +68,11 @@ impl<'a, D> TrieNode<'a, D> {
             }
         }
 
-        self.children.values().for_each(|x|
-            x.words_min_max(&(substring.to_owned() + x.character), found_words, ord)
+        self.children.iter().for_each(|(&character, node)|
+            node.words_min_max(&(substring.to_owned() + character), found_words, ord)
         );
     }
 
-    #[doc(hidden)]
     /// Recursive function for removing and freeing memory of a word that is not needed anymore.
     /// The algorithm first finds the last node of a word given in the form of a character iterator,
     /// then it frees the maps and unwinds to the first node that should not be deleted.
@@ -106,10 +96,9 @@ impl<'a, D> TrieNode<'a, D> {
         }
         self.children = HashMap::new();
 
-        self.is_word
+        self.associated_data.is_some()
     }
 
-    #[doc(hidden)]
     /// Recursive function that drops all children maps
     /// regardless of having multiple words branching from them or not.
     fn remove_all_words(&mut self) {
@@ -120,12 +109,11 @@ impl<'a, D> TrieNode<'a, D> {
         self.children.clear();
     }
 
-    #[doc(hidden)]
     /// Recursive function finds every node that is an end of a word and appends
     /// it's data to the passed vector.
     fn generate_all_data<'b>(&'b self, found_data: &mut Vec<&'b D>) {
-        if self.is_word {
-            found_data.extend(self.associated_data.iter());
+        if self.associated_data.is_some() {
+            found_data.extend(self.associated_data.as_ref().unwrap().iter());
         }
 
         self.children.values().for_each(|x|
@@ -133,10 +121,17 @@ impl<'a, D> TrieNode<'a, D> {
         );
     }
 
-    #[doc(hidden)]
     /// Function resets the data of a word.
     fn clear_data(&mut self) {
-        self.associated_data = Vec::new();
+        self.associated_data = None;
+    }
+
+    /// Function adds data to a node
+    fn add_data(&mut self, data: D) {
+        if self.associated_data.is_none() {
+            self.associated_data = Some(Vec::new());
+        }
+        self.associated_data.as_mut().unwrap().push(data);
     }
 }
 
@@ -152,7 +147,7 @@ impl<'a, D> Trie<'a, D> {
     /// Returns a new instance of the trie data structure.
     pub fn new() -> Self {
         Trie {
-            root: TrieNode::<D>::new("")
+            root: TrieNode::<D>::new()
         }
     }
 
@@ -170,11 +165,10 @@ impl<'a, D> Trie<'a, D> {
         let characters = UnicodeSegmentation::graphemes(word, true).collect::<Vec<&str>>();
 
         for character in characters {
-            current = current.children.entry(character).or_insert(TrieNode::new(character));
+            current = current.children.entry(character).or_insert(TrieNode::new());
         }
 
-        current.is_word = true;
-        current.associated_data.push(associated_data);
+        current.add_data(associated_data);
     }
 
     /// Removes a word from the trie. If the word is a prefix to some word, some word
@@ -207,7 +201,6 @@ impl<'a, D> Trie<'a, D> {
         }
 
         if !current.children.is_empty() {
-            current.is_word = false;
             current.clear_data();
             return;
         }
@@ -235,12 +228,10 @@ impl<'a, D> Trie<'a, D> {
 
         let mut current = &mut self.root;
 
-        for character in characters.iter() {
-            current = match current.children.get_mut(*character) {
+        for character in characters {
+            current = match current.children.get_mut(character) {
                 None => return,
-                Some(next_node) => {
-                    next_node
-                },
+                Some(next_node) => next_node
             };
         }
 
@@ -270,20 +261,22 @@ impl<'a, D> Trie<'a, D> {
         let characters = UnicodeSegmentation::graphemes(query, true).collect::<Vec<&str>>();
 
         for character in characters {
-            match current_node.children.get(character) {
+            current_node = match current_node.children.get(character) {
                 None => return None,
                 Some(trie_node) => {
-                    current_node = trie_node;
                     substring.push_str(character);
+                    trie_node
                 }
             }
         }
 
         let mut words_vec = Vec::new();
         current_node.find_words(&mut substring, &mut words_vec);
+
         if words_vec.is_empty() {
             return None;
         }
+
         Some(words_vec)
     }
 
@@ -410,11 +403,15 @@ impl<'a, D> Trie<'a, D> {
             let mut soft_match_data = Vec::new();
             current_node.generate_all_data(&mut soft_match_data);
 
+            if soft_match_data.is_empty() {
+                return None;
+            }
+
             Some(soft_match_data)
         } else {
-            match current_node.is_word {
-                true => Some(current_node.associated_data.iter().collect()),
-                false => None
+            match &current_node.associated_data {
+                Some(data_vec) => Some(data_vec.iter().collect()),
+                None => None
             }
         }
     }
@@ -431,7 +428,7 @@ impl<'a, D> Trie<'a, D> {
     /// trie.insert("word", "data3");
     /// trie.clear_word_data("word");
     ///
-    /// assert_eq!(Vec::<&&str>::new(), trie.find_data_of_word("word", false).unwrap());
+    /// assert_eq!(None, trie.find_data_of_word("word", false));
     /// ```
     pub fn clear_word_data(&mut self, word: &'a str) {
         let mut current = &mut self.root;
@@ -440,7 +437,7 @@ impl<'a, D> Trie<'a, D> {
         for character in characters {
             current = match current.children.get_mut(character) {
                 None => return,
-                Some(node) => node
+                Some(trie_node) => trie_node
             }
         }
 
