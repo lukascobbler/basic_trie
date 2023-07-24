@@ -1,6 +1,6 @@
 [package]
 name = "basic_trie"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["LukasCobbler"]
 license-file = "LICENSE"
@@ -11,4 +11,8 @@ repository = "https://github.com/lukascobbler/basic_trie"
 documentation = "https://docs.rs/basic_trie/"
 
 [dependencies]
-unicode-segmentation = "1.10.1"
+unicode-segmentation = { version = "1.10.1", optional = true }
+
+[features]
+default = ["unicode"]
+unicode = ["unicode-segmentation"]

@@ -4,6 +4,8 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
+
+#[cfg(feature = "unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Singular trie node that represents one character,
@@ -161,7 +163,8 @@ impl<'a, D> Trie<'a, D> {
     /// ```
     pub fn insert(&mut self, word: &'a str, associated_data: D) {
         let mut current = &mut self.root;
-        let characters = UnicodeSegmentation::graphemes(word, true).collect::<Vec<&str>>();
+
+        let characters = get_characters(word);
 
         for character in characters {
             current = current.children.entry(character).or_insert(TrieNode::new());
@@ -188,7 +191,7 @@ impl<'a, D> Trie<'a, D> {
     /// assert_eq!(None, trie.all_words());
     /// ```
     pub fn remove_word(&mut self, word: &str) {
-        let characters = UnicodeSegmentation::graphemes(word, true).collect::<Vec<&str>>();
+        let characters = get_characters(word);
 
         let mut current = &mut self.root;
 
@@ -223,7 +226,7 @@ impl<'a, D> Trie<'a, D> {
     /// assert_eq!(vec![String::from("ea")], trie.all_words().unwrap());
     /// ```
     pub fn remove_words_from_prefix(&mut self, prefix: &str) {
-        let characters = UnicodeSegmentation::graphemes(prefix, true).collect::<Vec<&str>>();
+        let characters = get_characters(prefix);
 
         let mut current = &mut self.root;
 
@@ -257,7 +260,7 @@ impl<'a, D> Trie<'a, D> {
         let mut current_node = &self.root;
         let mut substring = String::new();
 
-        let characters = UnicodeSegmentation::graphemes(query, true).collect::<Vec<&str>>();
+        let characters = get_characters(query);
 
         for character in characters {
             current_node = match current_node.children.get(character) {
@@ -388,8 +391,8 @@ impl<'a, D> Trie<'a, D> {
     /// found_data.sort();
     /// assert_eq!(soft_data, found_data);
     /// ```
-    pub fn find_data_of_word(&self, word: &str, soft_match: bool) -> Option<Vec<&D>> {
-        let characters = UnicodeSegmentation::graphemes(word, true).collect::<Vec<&str>>();
+    pub fn find_data_of_word(&self, query: &str, soft_match: bool) -> Option<Vec<&D>> {
+        let characters = get_characters(query);
         let mut current_node = &self.root;
 
         for character in characters {
@@ -432,7 +435,7 @@ impl<'a, D> Trie<'a, D> {
     /// ```
     pub fn clear_word_data(&mut self, word: &'a str) {
         let mut current = &mut self.root;
-        let characters = UnicodeSegmentation::graphemes(word, true).collect::<Vec<&str>>();
+        let characters = get_characters(word);
 
         for character in characters {
             current = match current.children.get_mut(character) {
@@ -448,5 +451,22 @@ impl<'a, D> Trie<'a, D> {
 impl<'a, D> Default for Trie<'a, D> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+fn get_characters(word: &str) -> Vec<&str> {
+    #[cfg(feature = "unicode")]
+    return UnicodeSegmentation::graphemes(word, true).collect();
+
+    #[cfg(not(feature = "unicode"))]
+    {
+        word.split("")
+            .collect::<Vec<&str>>()
+            .iter()
+            .skip(1)
+            .rev()
+            .skip(1)
+            .rev()
+            .cloned().collect()
     }
 }

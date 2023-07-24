@@ -17,10 +17,12 @@
 //! - finding data of words based on exact match or prefix
 //! - longest / shortest words in the trie
 //! - number of complete words in the trie
-//! - unicode support with the 'unicode-segmentation' crate
+//!
+//! ## Optional features
+//! - unicode support via the 'unicode' feature with the 'unicode-segmentation' crate (enabled by default)
 //!
 //! ## Dependencies
-//! - unicode-segmentation
+//! - unicode-segmentation (enabled by default)
 //!
 //! ## License
 //!
@@ -406,5 +408,40 @@ mod tests {
         trie.remove_words_from_prefix("e");
 
         assert_eq!(None, trie.find_data_of_word("", true));
+    }
+
+    #[cfg(feature = "unicode")]
+    #[test]
+    fn unicode() {
+        let mut trie = Trie::new();
+
+        trie.insert("а", 5);
+        trie.insert("аб", 5);
+        trie.insert("абц", 5);
+        trie.insert("абцд", 5);
+
+        let all_words = vec![
+            String::from("а"),
+            String::from("аб"),
+            String::from("абц"),
+            String::from("абцд"),
+        ];
+
+        assert_eq!(all_words, trie.all_words().unwrap())
+    }
+
+    #[cfg(feature = "unicode")]
+    #[test]
+    fn unicode2() {
+        let mut trie = Trie::new();
+
+        trie.insert("а", 5);
+        trie.insert("аб", 5);
+        trie.insert("абц", 5);
+        trie.insert("абцд", 5);
+
+        let all_data = vec![&5, &5, &5, &5];
+
+        assert_eq!(all_data, trie.find_data_of_word("а", true).unwrap())
     }
 }
