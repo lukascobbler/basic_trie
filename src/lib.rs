@@ -39,7 +39,7 @@ mod tests {
         let found_words_correct = vec![
             String::from("word1"),
             String::from("word2"),
-            String::from("word3")
+            String::from("word3"),
         ];
 
         let mut trie = Trie::new();
@@ -58,7 +58,7 @@ mod tests {
         let found_words_correct = vec![
             String::from("word1"),
             String::from("word2"),
-            String::from("word3")
+            String::from("word3"),
         ];
 
         let mut trie = Trie::new();
@@ -74,11 +74,7 @@ mod tests {
 
     #[test]
     fn find_data_soft_match() {
-        let found_data_correct = vec![
-            &1,
-            &2,
-            &3
-        ];
+        let found_data_correct = vec![&1, &2, &3];
 
         let mut trie = Trie::new();
 
@@ -93,11 +89,7 @@ mod tests {
 
     #[test]
     fn find_str_data_soft_match() {
-        let found_data_correct = vec![
-            &"data1",
-            &"data2",
-            &"data3"
-        ];
+        let found_data_correct = vec![&"data1", &"data2", &"data3"];
 
         let mut trie = Trie::new();
 
@@ -112,9 +104,7 @@ mod tests {
 
     #[test]
     fn find_data_hard_match() {
-        let found_data_correct = vec![
-            &1,
-        ];
+        let found_data_correct = vec![&1];
 
         let mut trie = Trie::new();
 
@@ -172,7 +162,10 @@ mod tests {
         let mut found_words = trie.longest_words();
         found_words.sort();
 
-        assert_eq!(vec![String::from("abba"), String::from("cddc")], found_words);
+        assert_eq!(
+            vec![String::from("abba"), String::from("cddc")],
+            found_words
+        );
     }
 
     #[test]
@@ -266,7 +259,7 @@ mod tests {
             String::from("a"),
             String::from("ab"),
             String::from("abc"),
-            String::from("abcd")
+            String::from("abcd"),
         ];
 
         assert_eq!(all_words, trie.all_words().unwrap())
@@ -286,7 +279,7 @@ mod tests {
         let all_words = vec![
             String::from("ab"),
             String::from("abc"),
-            String::from("abcd")
+            String::from("abcd"),
         ];
 
         assert_eq!(all_words, trie.all_words().unwrap())
@@ -303,11 +296,7 @@ mod tests {
 
         trie.remove_word("abcd");
 
-        let all_correct_words = vec![
-            String::from("a"),
-            String::from("ab"),
-            String::from("abc"),
-        ];
+        let all_correct_words = vec![String::from("a"), String::from("ab"), String::from("abc")];
 
         let mut all_words = trie.all_words().unwrap();
         all_words.sort();
@@ -326,11 +315,7 @@ mod tests {
 
         trie.remove_word("abc");
 
-        let all_correct_words = vec![
-            String::from("a"),
-            String::from("ab"),
-            String::from("abcd"),
-        ];
+        let all_correct_words = vec![String::from("a"), String::from("ab"), String::from("abcd")];
 
         let mut all_words = trie.all_words().unwrap();
         all_words.sort();

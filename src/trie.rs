@@ -1,10 +1,10 @@
 //! Module containing the implementation details of the Trie and the TrieNode.
 //! Users of this library do not need to have interactions with singular TrieNodes.
 
-use unicode_segmentation::UnicodeSegmentation;
 use std::cmp::Ordering;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fmt::Debug;
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Singular trie node that represents one character,
 /// it's children and data associated with the character
@@ -12,7 +12,7 @@ use std::fmt::Debug;
 #[derive(Debug)]
 struct TrieNode<'a, D> {
     children: HashMap<&'a str, TrieNode<'a, D>>,
-    associated_data: Option<Vec<D>>
+    associated_data: Option<Vec<D>>,
 }
 
 impl<'a, D> TrieNode<'a, D> {
@@ -20,18 +20,17 @@ impl<'a, D> TrieNode<'a, D> {
     fn new() -> Self {
         TrieNode {
             children: HashMap::new(),
-            associated_data: None
+            associated_data: None,
         }
     }
 
     /// Recursive function for getting the number of words from a given node.
     fn number_of_words(&self) -> usize {
-        self.children.values()
-            .map(
-                |x| x.number_of_words()
-            )
-            .sum::<usize>() +
-            (self.associated_data.is_some()) as usize
+        self.children
+            .values()
+            .map(|x| x.number_of_words())
+            .sum::<usize>()
+            + (self.associated_data.is_some()) as usize
     }
 
     /// Recursive function for inserting found words from the given node and
@@ -41,9 +40,9 @@ impl<'a, D> TrieNode<'a, D> {
             found_words.push(substring.to_string());
         }
 
-        self.children.iter().for_each(|(&character, node)|
+        self.children.iter().for_each(|(&character, node)| {
             node.find_words(&(substring.to_owned() + character), found_words)
-        );
+        });
     }
 
     /// The recursive function for finding a vector of shortest and longest words in the TrieNode consists of:
@@ -56,21 +55,21 @@ impl<'a, D> TrieNode<'a, D> {
                     match substring.len().cmp(&found.len()) {
                         Ordering::Less if ord == Ordering::Less => {
                             found_words.clear();
-                        },
+                        }
                         Ordering::Greater if ord == Ordering::Greater => {
                             found_words.clear();
-                        },
+                        }
                         Ordering::Equal => (),
-                        _ => break 'word
+                        _ => break 'word,
                     }
                 }
                 found_words.push(substring.to_string());
             }
         }
 
-        self.children.iter().for_each(|(&character, node)|
+        self.children.iter().for_each(|(&character, node)| {
             node.words_min_max(&(substring.to_owned() + character), found_words, ord)
-        );
+        });
     }
 
     /// Recursive function for removing and freeing memory of a word that is not needed anymore.
@@ -80,12 +79,12 @@ impl<'a, D> TrieNode<'a, D> {
     /// - the root node
     /// - the node that has multiple words branching from it
     fn remove_one_word<'b, I>(&mut self, mut characters: I) -> bool
-        where
-            I: Iterator<Item = &'b str>,
+    where
+        I: Iterator<Item = &'b str>,
     {
         let next_character = match characters.next() {
             Some(char) => char,
-            None => return false
+            None => return false,
         };
 
         let next_node = self.children.get_mut(next_character).unwrap();
@@ -116,9 +115,9 @@ impl<'a, D> TrieNode<'a, D> {
             found_data.extend(self.associated_data.as_ref().unwrap().iter());
         }
 
-        self.children.values().for_each(|x|
-            x.generate_all_data(found_data)
-        );
+        self.children
+            .values()
+            .for_each(|x| x.generate_all_data(found_data));
     }
 
     /// Function resets the data of a word.
@@ -140,14 +139,14 @@ impl<'a, D> TrieNode<'a, D> {
 ///
 #[derive(Debug)]
 pub struct Trie<'a, D> {
-    root: TrieNode<'a, D>
+    root: TrieNode<'a, D>,
 }
 
 impl<'a, D> Trie<'a, D> {
     /// Returns a new instance of the trie data structure.
     pub fn new() -> Self {
         Trie {
-            root: TrieNode::<D>::new()
+            root: TrieNode::<D>::new(),
         }
     }
 
@@ -196,7 +195,7 @@ impl<'a, D> Trie<'a, D> {
         for character in characters.iter() {
             current = match current.children.get_mut(*character) {
                 Some(next_node) => next_node,
-                None => return
+                None => return,
             };
         }
 
@@ -231,7 +230,7 @@ impl<'a, D> Trie<'a, D> {
         for character in characters {
             current = match current.children.get_mut(character) {
                 None => return,
-                Some(next_node) => next_node
+                Some(next_node) => next_node,
             };
         }
 
@@ -271,7 +270,7 @@ impl<'a, D> Trie<'a, D> {
         }
 
         let mut words_vec = Vec::new();
-        current_node.find_words(&mut substring, &mut words_vec);
+        current_node.find_words(&substring, &mut words_vec);
 
         if words_vec.is_empty() {
             return None;
@@ -297,7 +296,8 @@ impl<'a, D> Trie<'a, D> {
     /// ```
     pub fn longest_words(&self) -> Vec<String> {
         let mut empty_vec = Vec::new();
-        self.root.words_min_max("", &mut empty_vec, Ordering::Greater);
+        self.root
+            .words_min_max("", &mut empty_vec, Ordering::Greater);
         empty_vec
     }
 
@@ -395,7 +395,7 @@ impl<'a, D> Trie<'a, D> {
         for character in characters {
             current_node = match current_node.children.get(character) {
                 None => return None,
-                Some(trie_node) => trie_node
+                Some(trie_node) => trie_node,
             };
         }
 
@@ -409,11 +409,11 @@ impl<'a, D> Trie<'a, D> {
 
             Some(soft_match_data)
         } else {
-            match &current_node.associated_data {
-                Some(data_vec) => Some(data_vec.iter().collect()),
-                None => None
-            }
-        }
+            current_node
+                .associated_data
+                .as_ref()
+                .map(|data_vec| data_vec.iter().collect())
+        };
     }
 
     /// Clears data of some word. If the word is not found,
@@ -437,10 +437,16 @@ impl<'a, D> Trie<'a, D> {
         for character in characters {
             current = match current.children.get_mut(character) {
                 None => return,
-                Some(trie_node) => trie_node
+                Some(trie_node) => trie_node,
             }
         }
 
         current.clear_data();
+    }
+}
+
+impl<'a, D> Default for Trie<'a, D> {
+    fn default() -> Self {
+        Self::new()
     }
 }
