@@ -25,3 +25,5 @@ the pages the word is on with no added performance cost.
 ## License
 
 The software is licensed under the MIT license.
+
+[![Test CI](https://github.com/lukascobbler/basic_trie/actions/workflows/rust.yml/badge.svg)](https://github.com/lukascobbler/basic_trie/actions/workflows/rust.yml)
