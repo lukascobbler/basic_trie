@@ -29,17 +29,17 @@ jobs:
 
       - name: Lint
         run: |
-          cd phaser
+          cd basic_trie
           cargo fmt -- --check
           cargo clippy -- -D warnings          
 
       - name: Test
         run: |
-          cd phaser
+          cd basic_trie
           cargo check
           cargo test --all          
 
       - name: Build
         run: |
-          cd phaser
+          cd basic_trie
           cargo build --release          
