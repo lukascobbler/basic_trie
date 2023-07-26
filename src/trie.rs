@@ -11,10 +11,19 @@ use unicode_segmentation::UnicodeSegmentation;
 /// Singular trie node that represents one character,
 /// it's children and data associated with the character
 /// if it's a word.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct TrieNode<'a, D> {
     children: HashMap<&'a str, TrieNode<'a, D>>,
     associated_data: Option<Vec<D>>,
+}
+
+/// Helper struct for returning multiple values for deleting data.
+/// It is needed because the 'must_keep' value will at some point change
+/// from false to true, but the data stays the same from the beginning of
+/// unwinding.
+struct RemoveData<D> {
+    must_keep: bool,
+    data: Option<Vec<D>>
 }
 
 impl<'a, D> TrieNode<'a, D> {
@@ -80,34 +89,51 @@ impl<'a, D> TrieNode<'a, D> {
     /// The first node that should not be deleted is either:
     /// - the root node
     /// - the node that has multiple words branching from it
-    fn remove_one_word<'b, I>(&mut self, mut characters: I) -> bool
-    where
-        I: Iterator<Item = &'b str>,
+    /// - the node that represents an end to some word with the same prefix
+    /// The last node's data is propagated all the way to the final return with the help
+    /// of auxiliary 'RemoveData<D>' struct.
+    fn remove_one_word_data<'b, I>(&mut self, mut characters: I) -> RemoveData<D>
+        where
+            I: Iterator<Item = &'b str>,
     {
         let next_character = match characters.next() {
-            Some(char) => char,
-            None => return false,
+            None => return RemoveData {
+                must_keep: false,
+                data: self.clear_data()
+            },
+            Some(char) => char
         };
 
         let next_node = self.children.get_mut(next_character).unwrap();
-        let must_keep = next_node.remove_one_word(characters);
+        let must_keep = next_node.remove_one_word_data(characters);
 
-        if self.children.len() > 1 || must_keep {
-            return true;
+        if self.children.len() > 1 || must_keep.must_keep {
+            return RemoveData {
+                must_keep: true,
+                data: must_keep.data
+            }
         }
         self.children = HashMap::new();
 
-        self.associated_data.is_some()
+        RemoveData {
+            must_keep: self.associated_data.is_some(),
+            data: must_keep.data
+        }
     }
 
     /// Recursive function that drops all children maps
     /// regardless of having multiple words branching from them or not.
-    fn remove_all_words(&mut self) {
+    /// Each word's data is added to the mutable 'data_vec'.
+    fn remove_all_words(&mut self, data_vec: &mut Vec<D>) {
         self.children.values_mut().for_each(|x| {
-            x.remove_all_words();
+            x.remove_all_words(data_vec);
         });
 
-        self.children.clear();
+        if self.associated_data.is_some() {
+            data_vec.extend(self.clear_data().unwrap());
+        }
+
+        self.children = HashMap::new();
     }
 
     /// Recursive function finds every node that is an end of a word and appends
@@ -123,8 +149,10 @@ impl<'a, D> TrieNode<'a, D> {
     }
 
     /// Function resets the data of a word.
-    fn clear_data(&mut self) {
+    fn clear_data(&mut self) -> Option<Vec<D>> {
+        let return_data = std::mem::take(&mut self.associated_data);
         self.associated_data = None;
+        return_data
     }
 
     /// Function adds data to a node
@@ -138,8 +166,7 @@ impl<'a, D> TrieNode<'a, D> {
 
 /// Trie data structure. Each word has a list of data associated to it. The associated data
 /// can be of any type.
-///
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Trie<'a, D> {
     root: TrieNode<'a, D>,
 }
@@ -167,14 +194,15 @@ impl<'a, D> Trie<'a, D> {
         let characters = get_characters(word);
 
         for character in characters {
-            current = current.children.entry(character).or_insert(TrieNode::new());
+            current = current.children.entry(character).or_insert_with(TrieNode::new);
         }
 
         current.add_data(associated_data);
     }
 
-    /// Removes a word from the trie. If the word is a prefix to some word, some word
-    /// isn't removed from the trie. The associated data is also removed.
+    /// Removes a word from the trie and returns data associated with that word.
+    /// If the word is a prefix to some word, some word
+    /// isn't removed from the trie.
     ///
     /// ```
     /// use basic_trie::Trie;
@@ -183,34 +211,36 @@ impl<'a, D> Trie<'a, D> {
     /// trie.insert("word", "somedata");
     /// trie.insert("wording", "somedata2");
     ///
-    /// trie.remove_word("word");
+    /// let removed_data1 = trie.remove_word("word");
     /// assert_eq!(vec![String::from("wording")], trie.find_words("word").unwrap());
     /// assert_eq!(vec![&"somedata2"], trie.find_data_of_word("word", true).unwrap());
+    /// assert_eq!(vec!["somedata"], removed_data1.unwrap());
     ///
-    /// trie.remove_word("wording");
+    /// let removed_data2 = trie.remove_word("wording");
     /// assert_eq!(None, trie.all_words());
+    /// assert_eq!(vec!["somedata2"], removed_data2.unwrap());
     /// ```
-    pub fn remove_word(&mut self, word: &str) {
+    pub fn remove_word(&mut self, word: &str) -> Option<Vec<D>> {
         let characters = get_characters(word);
 
         let mut current = &mut self.root;
 
         for character in characters.iter() {
             current = match current.children.get_mut(*character) {
-                Some(next_node) => next_node,
-                None => return,
+                None => return None,
+                Some(next_node) => next_node
             };
         }
 
         if !current.children.is_empty() {
-            current.clear_data();
-            return;
+            return current.clear_data();
         }
 
-        self.root.remove_one_word(characters.into_iter());
+        self.root.remove_one_word_data(characters.into_iter()).data
     }
 
     /// Removes every word that begins with 'prefix'.
+    /// Not including the word 'prefix' if it's present.
     ///
     /// ```
     /// use basic_trie::Trie;
@@ -222,22 +252,33 @@ impl<'a, D> Trie<'a, D> {
     /// trie.insert("eatings", "somedata4");
     /// trie.insert("ea", "somedata5");
     ///
-    /// trie.remove_words_from_prefix("ea");
+    /// let mut removed_data = trie.remove_words_from_prefix("ea").unwrap();
+    /// removed_data.sort();
+    ///
     /// assert_eq!(vec![String::from("ea")], trie.all_words().unwrap());
+    /// assert_eq!(vec!["somedata", "somedata2", "somedata3", "somedata4"], removed_data);
     /// ```
-    pub fn remove_words_from_prefix(&mut self, prefix: &str) {
+    pub fn remove_words_from_prefix(&mut self, prefix: &str) -> Option<Vec<D>> {
         let characters = get_characters(prefix);
 
         let mut current = &mut self.root;
 
         for character in characters {
             current = match current.children.get_mut(character) {
-                None => return,
+                None => return None,
                 Some(next_node) => next_node,
             };
         }
 
-        current.remove_all_words();
+        let mut data_vec = Vec::new();
+        current.children.values_mut().for_each(|child|
+            child.remove_all_words(&mut data_vec)
+        );
+        return if !data_vec.is_empty() {
+            Some(data_vec)
+        } else {
+            None
+        }
     }
 
     /// Returns an option enum with a vector of owned strings
@@ -419,7 +460,7 @@ impl<'a, D> Trie<'a, D> {
         };
     }
 
-    /// Clears data of some word. If the word is not found,
+    /// Clears and returns data of some word. If the word is not found,
     /// or there is no data associated with the word, nothing happens.
     ///
     /// ```
@@ -429,28 +470,47 @@ impl<'a, D> Trie<'a, D> {
     /// trie.insert("word", "data1");
     /// trie.insert("word", "data2");
     /// trie.insert("word", "data3");
-    /// trie.clear_word_data("word");
+    /// let found_data = trie.clear_word_data("word");
     ///
     /// assert_eq!(None, trie.find_data_of_word("word", false));
+    /// assert_eq!(vec!["data1", "data2", "data3"], found_data.unwrap());
     /// ```
-    pub fn clear_word_data(&mut self, word: &'a str) {
+    pub fn clear_word_data(&mut self, word: &'a str) -> Option<Vec<D>> {
         let mut current = &mut self.root;
         let characters = get_characters(word);
 
         for character in characters {
             current = match current.children.get_mut(character) {
-                None => return,
+                None => return None,
                 Some(trie_node) => trie_node,
             }
         }
 
-        current.clear_data();
+        current.clear_data()
     }
-}
 
-impl<'a, D> Default for Trie<'a, D> {
-    fn default() -> Self {
-        Self::new()
+    /// Returns true if the trie contains 'query' as a word.
+    ///
+    /// ```
+    /// use basic_trie::Trie;
+    /// let mut trie = Trie::new();
+    ///
+    /// trie.insert("word", "");
+    /// assert!(trie.contains("word"));
+    /// assert!(!trie.contains("notfound"));
+    /// ```
+    pub fn contains(&self, query: &str) -> bool {
+        let characters = get_characters(query);
+        let mut current_node = &self.root;
+
+        for character in characters {
+            current_node = match current_node.children.get(character) {
+                None => return false,
+                Some(next_node) => next_node
+            }
+        }
+
+        current_node.associated_data.is_some()
     }
 }
 
