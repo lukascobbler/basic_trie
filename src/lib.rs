@@ -29,12 +29,13 @@
 //! The software is licensed under the MIT license.
 
 mod trie;
+mod trie_node;
 
 pub use trie::Trie;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod trie_tests {
+    use super::Trie;
 
     #[test]
     fn find_words() {
@@ -529,5 +530,19 @@ mod tests {
         let all_data = vec![&5, &5, &5, &5];
 
         assert_eq!(all_data, trie.find_data_of_word("а", true).unwrap())
+    }
+
+    #[test]
+    fn clear() {
+        let mut trie = Trie::new();
+        trie.insert("word1", "");
+        trie.insert("word2", "");
+        trie.insert("word3", "");
+        trie.insert("word4", "");
+        trie.insert("word5", "");
+
+        trie.clear();
+
+        println!("{:?}", trie);
     }
 }
