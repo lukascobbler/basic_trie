@@ -31,12 +31,23 @@
 mod trie;
 mod trie_node;
 
-pub use trie::Trie;
+mod data {
+    #[derive(Debug)]
+    pub struct YesData;
 
+    #[derive(Debug)]
+    pub struct NoData;
+}
+
+pub use trie::DataTrie;
+pub use trie::DatalessTrie;
+
+// Tests which are the same for both implementations,
+// Dataless is used for less verbose code.
 #[cfg(test)]
-mod trie_tests {
-    use super::Trie;
-
+mod general_trie_tests {
+    use super::DatalessTrie;
+    
     #[test]
     fn find_words() {
         let found_words_correct = vec![
@@ -45,11 +56,11 @@ mod trie_tests {
             String::from("word3"),
         ];
 
-        let mut trie = Trie::new();
+        let mut trie = DatalessTrie::new();
 
-        trie.insert("word1", "data1");
-        trie.insert("word2", "data2");
-        trie.insert("word3", "data3");
+        trie.insert("word1");
+        trie.insert("word2");
+        trie.insert("word3");
 
         let mut found_words = trie.find_words("word").unwrap();
         found_words.sort();
@@ -57,29 +68,159 @@ mod trie_tests {
     }
 
     #[test]
-    fn find_words_num() {
-        let found_words_correct = vec![
-            String::from("word1"),
-            String::from("word2"),
-            String::from("word3"),
+    fn longest_word() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a");
+        assert_eq!(trie.longest_words(), vec![String::from("a")]);
+
+        trie.insert("aa");
+        assert_eq!(trie.longest_words(), vec![String::from("aa")]);
+
+        trie.insert("aaa");
+        assert_eq!(trie.longest_words(), vec![String::from("aaa")]);
+
+        trie.insert("aaaa");
+        assert_eq!(trie.longest_words(), vec![String::from("aaaa")]);
+
+        trie.insert("a");
+        assert_eq!(trie.longest_words(), vec![String::from("aaaa")]);
+    }
+
+    #[test]
+    fn multiple_longest_words() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("abba");
+        trie.insert("cddc");
+
+        let mut found_words = trie.longest_words();
+        found_words.sort();
+
+        assert_eq!(
+            vec![String::from("abba"), String::from("cddc")],
+            found_words
+        );
+    }
+
+    #[test]
+    fn shortest_word() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a");
+        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+
+        trie.insert("aa");
+        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+
+        trie.insert("aaa");
+        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+
+        trie.insert("aaaa");
+        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+
+        trie.insert("a");
+        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+    }
+
+    #[test]
+    fn multiple_shortest_words() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("aaa");
+        trie.insert("aaaa");
+        trie.insert("aa");
+        trie.insert("bb");
+
+        let mut found_words = trie.shortest_words();
+        found_words.sort();
+
+        assert_eq!(vec![String::from("aa"), String::from("bb")], found_words);
+    }
+
+    #[test]
+    fn number_of_words() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a");
+        trie.insert("b");
+        trie.insert("c");
+        trie.insert("d");
+
+        assert_eq!(4, trie.number_of_words());
+    }
+
+    #[test]
+    fn same_word_twice() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("twice");
+        trie.insert("twice");
+
+        assert_eq!(vec!["twice"], trie.find_words("twice").unwrap());
+    }
+
+    #[test]
+    fn all_words() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a");
+        trie.insert("ab");
+        trie.insert("abc");
+        trie.insert("abcd");
+
+        let all_words = vec![
+            String::from("a"),
+            String::from("ab"),
+            String::from("abc"),
+            String::from("abcd"),
         ];
 
-        let mut trie = Trie::new();
-
-        trie.insert("word1", 1);
-        trie.insert("word2", 2);
-        trie.insert("word3", 3);
-
-        let mut found_words = trie.find_words("word").unwrap();
-        found_words.sort();
-        assert_eq!(found_words, found_words_correct);
+        assert_eq!(all_words, trie.all_words().unwrap())
     }
+
+    #[cfg(feature = "unicode")]
+    #[test]
+    fn unicode() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("а");
+        trie.insert("аб");
+        trie.insert("абц");
+        trie.insert("абцд");
+
+        let all_words = vec![
+            String::from("а"),
+            String::from("аб"),
+            String::from("абц"),
+            String::from("абцд"),
+        ];
+
+        assert_eq!(all_words, trie.all_words().unwrap())
+    }
+
+    #[test]
+    fn clear() {
+        let mut trie = DatalessTrie::new();
+        trie.insert("word1");
+        trie.insert("word2");
+        trie.insert("word3");
+        trie.insert("word4");
+        trie.insert("word5");
+
+        trie.clear();
+    }
+}
+
+#[cfg(test)]
+mod data_trie_tests {
+    use super::DataTrie;
 
     #[test]
     fn find_data_soft_match() {
         let found_data_correct = vec![&1, &2, &3];
 
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("word1", 1);
         trie.insert("word2", 2);
@@ -94,7 +235,7 @@ mod trie_tests {
     fn find_str_data_soft_match() {
         let found_data_correct = vec![&"data1", &"data2", &"data3"];
 
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("word1", "data1");
         trie.insert("word2", "data2");
@@ -109,7 +250,7 @@ mod trie_tests {
     fn find_data_hard_match() {
         let found_data_correct = vec![&1];
 
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("word1", 1);
         trie.insert("word2", 2);
@@ -124,7 +265,7 @@ mod trie_tests {
     fn find_data_hard_match_not_found() {
         let found_data_correct = None;
 
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("word1", 1);
         trie.insert("word2", 2);
@@ -134,103 +275,10 @@ mod trie_tests {
 
         assert_eq!(found_data, found_data_correct);
     }
-
-    #[test]
-    fn longest_word() {
-        let mut trie = Trie::new();
-
-        trie.insert("a", 5);
-        assert_eq!(trie.longest_words(), vec![String::from("a")]);
-
-        trie.insert("aa", 5);
-        assert_eq!(trie.longest_words(), vec![String::from("aa")]);
-
-        trie.insert("aaa", 5);
-        assert_eq!(trie.longest_words(), vec![String::from("aaa")]);
-
-        trie.insert("aaaa", 5);
-        assert_eq!(trie.longest_words(), vec![String::from("aaaa")]);
-
-        trie.insert("a", 5);
-        assert_eq!(trie.longest_words(), vec![String::from("aaaa")]);
-    }
-
-    #[test]
-    fn multiple_longest_words() {
-        let mut trie = Trie::new();
-
-        trie.insert("abba", 5);
-        trie.insert("cddc", 5);
-
-        let mut found_words = trie.longest_words();
-        found_words.sort();
-
-        assert_eq!(
-            vec![String::from("abba"), String::from("cddc")],
-            found_words
-        );
-    }
-
-    #[test]
-    fn shortest_word() {
-        let mut trie = Trie::new();
-
-        trie.insert("a", 5);
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
-
-        trie.insert("aa", 5);
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
-
-        trie.insert("aaa", 5);
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
-
-        trie.insert("aaaa", 5);
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
-
-        trie.insert("a", 5);
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
-    }
-
-    #[test]
-    fn multiple_shortest_words() {
-        let mut trie = Trie::new();
-
-        trie.insert("aaa", 5);
-        trie.insert("aaaa", 5);
-        trie.insert("aa", 5);
-        trie.insert("bb", 5);
-
-        let mut found_words = trie.shortest_words();
-        found_words.sort();
-
-        assert_eq!(vec![String::from("aa"), String::from("bb")], found_words);
-    }
-
-    #[test]
-    fn number_of_words() {
-        let mut trie = Trie::new();
-
-        trie.insert("a", 1);
-        trie.insert("b", 1);
-        trie.insert("c", 1);
-        trie.insert("d", 1);
-
-        assert_eq!(4, trie.number_of_words());
-    }
-
-    #[test]
-    fn same_word_twice() {
-        let mut trie = Trie::new();
-
-        trie.insert("twice", 5);
-        trie.insert("twice", 5);
-
-        assert_eq!(vec!["twice"], trie.find_words("twice").unwrap());
-    }
-
+    
     #[test]
     fn same_word_twice_different_data() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("twice", 5);
         trie.insert("twice", 3);
@@ -240,7 +288,7 @@ mod trie_tests {
 
     #[test]
     fn clear_word_data() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("twice", 5);
         let data = trie.clear_word_data("twice");
@@ -252,7 +300,7 @@ mod trie_tests {
 
     #[test]
     fn clear_word_no_data() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("word1", 5);
         let data = trie.clear_word_data("word2");
@@ -261,27 +309,8 @@ mod trie_tests {
     }
 
     #[test]
-    fn all_words() {
-        let mut trie = Trie::new();
-
-        trie.insert("a", 5);
-        trie.insert("ab", 5);
-        trie.insert("abc", 5);
-        trie.insert("abcd", 5);
-
-        let all_words = vec![
-            String::from("a"),
-            String::from("ab"),
-            String::from("abc"),
-            String::from("abcd"),
-        ];
-
-        assert_eq!(all_words, trie.all_words().unwrap())
-    }
-
-    #[test]
     fn remove_word1() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("a", 5);
         trie.insert("ab", 5);
@@ -301,7 +330,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_final() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("a", 5);
         trie.insert("ab", 5);
@@ -320,7 +349,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_2() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("a", 5);
         trie.insert("ab", 5);
@@ -340,7 +369,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_3() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("eat", 5);
         trie.insert("eating", 5);
@@ -363,7 +392,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_4() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("eat", 5);
         trie.insert("eating", 5);
@@ -386,7 +415,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_5() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("eat", 5);
         trie.insert("eating", 5);
@@ -411,7 +440,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_6() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("eat", 5);
         trie.insert("eatings", 5);
@@ -430,7 +459,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_7() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("eat", 3);
         trie.insert("eatings", 5);
@@ -455,7 +484,7 @@ mod trie_tests {
 
     #[test]
     fn remove_word_8() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("eat", 3);
         trie.insert("eats", 4);
@@ -482,7 +511,7 @@ mod trie_tests {
 
     #[test]
     fn remove_prefix() {
-        let mut trie = Trie::new();
+        let mut trie = DataTrie::new();
 
         trie.insert("eat", 3);
         trie.insert("eating", 4);
@@ -499,28 +528,8 @@ mod trie_tests {
 
     #[cfg(feature = "unicode")]
     #[test]
-    fn unicode() {
-        let mut trie = Trie::new();
-
-        trie.insert("а", 5);
-        trie.insert("аб", 5);
-        trie.insert("абц", 5);
-        trie.insert("абцд", 5);
-
-        let all_words = vec![
-            String::from("а"),
-            String::from("аб"),
-            String::from("абц"),
-            String::from("абцд"),
-        ];
-
-        assert_eq!(all_words, trie.all_words().unwrap())
-    }
-
-    #[cfg(feature = "unicode")]
-    #[test]
-    fn unicode2() {
-        let mut trie = Trie::new();
+    fn unicode_data() {
+        let mut trie = DataTrie::new();
 
         trie.insert("а", 5);
         trie.insert("аб", 5);
@@ -532,17 +541,252 @@ mod trie_tests {
         assert_eq!(all_data, trie.find_data_of_word("а", true).unwrap())
     }
 
+}
+
+#[cfg(test)]
+mod dataless_trie_tests {
+    use super::DatalessTrie;
+
     #[test]
-    fn clear() {
-        let mut trie = Trie::new();
-        trie.insert("word1", "");
-        trie.insert("word2", "");
-        trie.insert("word3", "");
-        trie.insert("word4", "");
-        trie.insert("word5", "");
+    fn insert_no_data() {
+        let mut trie = DatalessTrie::new();
 
-        trie.clear();
+        let found_words_correct = vec![
+            String::from("word1"),
+            String::from("word2"),
+            String::from("word3"),
+        ];
 
-        println!("{:?}", trie);
+        trie.insert("word1");
+        trie.insert("word2");
+        trie.insert("word3");
+
+        let mut found_words = trie.find_words("word").unwrap();
+        found_words.sort();
+
+        assert_eq!(found_words, found_words_correct);
+    }
+
+    #[test]
+    fn remove_word1() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a");
+        trie.insert("ab");
+        trie.insert("abc");
+        trie.insert("abcd");
+
+        trie.remove_word("a");
+
+        let all_words = vec![
+            String::from("ab"),
+            String::from("abc"),
+            String::from("abcd"),
+        ];
+
+        assert_eq!(all_words, trie.all_words().unwrap())
+    }
+
+    #[test]
+    fn remove_word_final() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a");
+        trie.insert("ab");
+        trie.insert("abc");
+        trie.insert("abcd");
+
+        trie.remove_word("abcd");
+
+        let all_correct_words = vec![String::from("a"), String::from("ab"), String::from("abc")];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_2() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a");
+        trie.insert("ab");
+        trie.insert("abc");
+        trie.insert("abcd");
+
+        trie.remove_word("abc");
+
+        let all_correct_words = vec![String::from("a"), String::from("ab"), String::from("abcd")];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_3() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("eat");
+        trie.insert("eating");
+        trie.insert("eats");
+        trie.insert("eatings");
+
+        trie.remove_word("eating");
+
+        let all_correct_words = vec![
+            String::from("eat"),
+            String::from("eatings"),
+            String::from("eats"),
+        ];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_4() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("eat");
+        trie.insert("eating");
+        trie.insert("eats");
+        trie.insert("eatings");
+
+        trie.remove_word("eatings");
+
+        let all_correct_words = vec![
+            String::from("eat"),
+            String::from("eating"),
+            String::from("eats"),
+        ];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_5() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("eat");
+        trie.insert("eating");
+        trie.insert("eats");
+        trie.insert("eatings");
+
+        trie.remove_word("eatin");
+
+        let all_correct_words = vec![
+            String::from("eat"),
+            String::from("eating"),
+            String::from("eatings"),
+            String::from("eats"),
+        ];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_6() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("eat");
+        trie.insert("eatings");
+
+        trie.remove_word("eatings");
+
+        let all_correct_words = vec![
+            String::from("eat"),
+        ];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_7() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("eat");
+        trie.insert("eatings");
+
+        trie.remove_word("eatings");
+
+        let all_correct_words = vec![
+            String::from("eat"),
+        ];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_8() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("eat");
+        trie.insert("eats");
+        trie.insert("eating");
+
+        trie.remove_word("eats");
+
+        let all_correct_words = vec![
+            String::from("eat"),
+            String::from("eating")
+        ];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_word_9() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("123");
+        trie.insert("1234");
+        trie.insert("12345");
+
+        trie.remove_word("1234");
+
+        let all_correct_words = vec![
+            String::from("123"),
+            String::from("12345")
+        ];
+
+        let mut all_words = trie.all_words().unwrap();
+        all_words.sort();
+
+        assert_eq!(all_correct_words, all_words);
+    }
+
+    #[test]
+    fn remove_prefix() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("eat");
+        trie.insert("eating");
+        trie.insert("eats");
+        trie.insert("eatings");
+        trie.insert("ea");
+
+        trie.remove_words_from_prefix("ea");
+
+        assert_eq!(vec![String::from("ea")], trie.all_words().unwrap());
     }
 }
