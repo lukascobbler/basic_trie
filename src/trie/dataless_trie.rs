@@ -1,19 +1,10 @@
-use std::marker::PhantomData;
 use crate::trie::{get_characters, Trie};
-use crate::trie_node::{NodeAssociation, TrieDatalessNode};
+use crate::trie_node::{TrieDatalessNode};
 use crate::data::NoData;
 
 pub type DatalessTrie<'a> = Trie<'a, (), NoData>;
 
 impl<'a> DatalessTrie<'a> {
-    /// Returns a new instance of the dataless trie.
-    pub fn new() -> Self {
-        Trie {
-            root: TrieDatalessNode::new(),
-            pd: PhantomData::<NoData>
-        }
-    }
-
     /// Insert a word into the trie, with no corresponding data.
     ///
     /// # Examples
@@ -33,9 +24,7 @@ impl<'a> DatalessTrie<'a> {
             current = current.children.entry(character).or_insert_with(TrieDatalessNode::new);
         }
 
-        if !current.word_end_association.is_associated() {
-            current.word_end_association = NodeAssociation::NoData;
-        }
+        current.associate(false);
     }
 
     /// Removes a word from the dataless trie.
@@ -70,7 +59,7 @@ impl<'a> DatalessTrie<'a> {
         }
 
         if !current.children.is_empty() {
-            current.word_end_association = NodeAssociation::NoAssociation;
+            current.disassociate();
             return;
         }
 

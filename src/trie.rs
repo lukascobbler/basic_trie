@@ -11,19 +11,30 @@ use std::marker::PhantomData;
 #[cfg(feature = "unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 use crate::trie_node::TrieNode;
+use crate::data::CData;
 
 pub use data_trie::DataTrie;
 pub use dataless_trie::DatalessTrie;
 
 /// Trie data structure. Generic implementation for common methods
-/// between Dataless and Data tries.
+/// between Dataless and Data tries. Phantom data as a state machine
+/// is used together with zero sized structs
+/// 'YesData' and 'NoData' to differentiate between two types.
 #[derive(Debug, Default)]
-pub struct Trie<'a, D, HasData> {
+pub struct Trie<'a, D, HasData: CData> {
     root: TrieNode<'a, D, HasData>,
     pd: PhantomData<HasData>
 }
 
-impl<'a, D, HasData> Trie<'a, D, HasData> {
+impl<'a, D, HasData: CData> Trie<'a, D, HasData> {
+    /// Returns a new instance of the trie.
+    pub fn new() -> Self {
+        Trie {
+            root: TrieNode::new(),
+            pd: PhantomData::<HasData>
+        }
+    }
+
     /// Returns an option enum with a vector of owned strings
     /// representing all found words that begin with "query".
     /// If no words are found, None is returned.
@@ -185,7 +196,7 @@ impl<'a, D, HasData> Trie<'a, D, HasData> {
     pub fn contains(&self, query: &str) -> bool {
         match self.get_final_node(query) {
             None => false,
-            Some(node) => node.word_end_association.is_associated()
+            Some(node) => node.is_associated()
         }
     }
 

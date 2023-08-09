@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use crate::trie::{get_characters, Trie};
 use crate::trie_node::{NodeAssociation, TrieDataNode};
 use crate::data::YesData;
@@ -6,14 +5,6 @@ use crate::data::YesData;
 pub type DataTrie<'a, D> = Trie<'a, D, YesData>;
 
 impl <'a, D> DataTrie<'a, D> {
-    /// Returns a new instance of the data trie.
-    pub fn new() -> Self {
-        Trie {
-            root: TrieDataNode::<D>::new(),
-            pd: PhantomData::<YesData>
-        }
-    }
-
     /// Insert a word into the trie, with the corresponding data.
     ///
     /// # Examples
@@ -33,11 +24,37 @@ impl <'a, D> DataTrie<'a, D> {
             current = current.children.entry(character).or_insert_with(TrieDataNode::new);
         }
 
-        if !current.word_end_association.is_associated() {
-            current.word_end_association = NodeAssociation::Data(Vec::new());
+        current.associate(true);
+        current.push_data(associated_data);
+    }
+
+    /// Insert a word into the trie, with no corresponding data.
+    /// This function is very different from inserting a word into
+    /// a dataless trie, since it enables later attachment of data
+    /// onto the inserted word. Type of trie must be annotated if
+    /// this is the first function call.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use basic_trie::DataTrie;
+    /// let mut trie = DataTrie::<&str>::new();
+    ///
+    /// trie.insert_no_data("word1");
+    /// assert_eq!(vec![String::from("word1")], trie.all_words().unwrap());
+    ///
+    /// trie.insert("word1", "somedata");
+    /// assert_eq!(vec![&"somedata"], trie.find_data_of_word("word1", false).unwrap());
+    /// ```
+    pub fn insert_no_data(&mut self, word: &'a str) {
+        let characters = get_characters(word);
+        let mut current = &mut self.root;
+
+        for character in characters {
+            current = current.children.entry(character).or_insert_with(TrieDataNode::new);
         }
 
-        current.word_end_association.push_data(associated_data);
+        current.associate(true);
     }
 
     /// Removes a word from the trie and returns data associated with that word.
@@ -76,7 +93,7 @@ impl <'a, D> DataTrie<'a, D> {
 
         if !current.children.is_empty() {
             return match current.clear_word_end_association(false) {
-                NodeAssociation::Data(data_vec) => Some(data_vec),
+                NodeAssociation::Data(data_vec) if !data_vec.is_empty() => Some(data_vec),
                 _ => None
             }
         }
@@ -170,7 +187,7 @@ impl <'a, D> DataTrie<'a, D> {
 
             Some(soft_match_data)
         } else {
-            match &current.word_end_association {
+            match current.get_association() {
                 NodeAssociation::Data(data_vec) if !data_vec.is_empty() =>
                     Some(data_vec.iter().collect()),
                 _ => None

@@ -32,11 +32,16 @@ mod trie;
 mod trie_node;
 
 mod data {
+    pub trait CData {}
+
     #[derive(Debug)]
     pub struct YesData;
 
     #[derive(Debug)]
     pub struct NoData;
+
+    impl CData for YesData {}
+    impl CData for NoData {}
 }
 
 pub use trie::DataTrie;
@@ -541,6 +546,16 @@ mod data_trie_tests {
         assert_eq!(all_data, trie.find_data_of_word("а", true).unwrap())
     }
 
+    #[test]
+    fn insert_no_data() {
+        let mut trie = DataTrie::<&str>::new();
+
+        trie.insert_no_data("word1");
+        assert_eq!(vec![String::from("word1")], trie.all_words().unwrap());
+
+        trie.insert("word1", "somedata");
+        assert_eq!(vec![&"somedata"], trie.find_data_of_word("word1", false).unwrap());
+    }
 }
 
 #[cfg(test)]
