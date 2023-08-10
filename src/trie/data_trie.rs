@@ -142,6 +142,8 @@ impl <'a, D> DataTrie<'a, D> {
             child.remove_all_words_collect(&mut data_vec)
         );
 
+        current.clear_children();
+
         if !data_vec.is_empty() {
             Some(data_vec)
         } else {

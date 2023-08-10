@@ -194,7 +194,7 @@ impl<'a, D, HasData: CData> TrieNode<'a, D, HasData> {
     }
 
     /// Function removes all children of a node.
-    fn clear_children(&mut self) {
+    pub(crate) fn clear_children(&mut self) {
         self.children = HashMap::new();
     }
 }
