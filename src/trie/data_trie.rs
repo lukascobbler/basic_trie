@@ -2,9 +2,9 @@ use crate::trie::{get_characters, Trie};
 use crate::trie_node::{NodeAssociation, TrieDataNode};
 use crate::data::YesData;
 
-pub type DataTrie<'a, D> = Trie<'a, D, YesData>;
+pub type DataTrie<D> = Trie<D, YesData>;
 
-impl <'a, D> DataTrie<'a, D> {
+impl <D> DataTrie<D> {
     /// Insert a word into the trie, with the corresponding data.
     ///
     /// # Examples
@@ -16,12 +16,12 @@ impl <'a, D> DataTrie<'a, D> {
     /// trie.insert("word1", "somedata");
     /// assert_eq!(vec![String::from("word1")], trie.all_words().unwrap());
     /// ```
-    pub fn insert(&mut self, word: &'a str, associated_data: D) {
+    pub fn insert(&mut self, word: &str, associated_data: D) {
         let characters = get_characters(word);
         let mut current = &mut self.root;
 
         for character in characters {
-            current = current.children.entry(character).or_insert_with(TrieDataNode::new);
+            current = current.children.entry(Box::from(character)).or_insert_with(TrieDataNode::new);
         }
 
         current.associate(true);
@@ -46,12 +46,12 @@ impl <'a, D> DataTrie<'a, D> {
     /// trie.insert("word1", "somedata");
     /// assert_eq!(vec![&"somedata"], trie.find_data_of_word("word1", false).unwrap());
     /// ```
-    pub fn insert_no_data(&mut self, word: &'a str) {
+    pub fn insert_no_data(&mut self, word: &str) {
         let characters = get_characters(word);
         let mut current = &mut self.root;
 
         for character in characters {
-            current = current.children.entry(character).or_insert_with(TrieDataNode::new);
+            current = current.children.entry(Box::from(character)).or_insert_with(TrieDataNode::new);
         }
 
         current.associate(true);
@@ -214,7 +214,7 @@ impl <'a, D> DataTrie<'a, D> {
     /// assert_eq!(None, trie.find_data_of_word("word", false));
     /// assert_eq!(vec!["data1", "data2", "data3"], found_data.unwrap());
     /// ```
-    pub fn clear_word_data(&mut self, word: &'a str) -> Option<Vec<D>> {
+    pub fn clear_word_data(&mut self, word: &str) -> Option<Vec<D>> {
         let mut current = &mut self.root;
         let characters = get_characters(word);
 

@@ -2,9 +2,9 @@ use crate::trie::{get_characters, Trie};
 use crate::trie_node::{TrieDatalessNode};
 use crate::data::NoData;
 
-pub type DatalessTrie<'a> = Trie<'a, (), NoData>;
+pub type DatalessTrie = Trie<(), NoData>;
 
-impl<'a> DatalessTrie<'a> {
+impl DatalessTrie {
     /// Insert a word into the trie, with no corresponding data.
     ///
     /// # Examples
@@ -16,12 +16,12 @@ impl<'a> DatalessTrie<'a> {
     /// trie.insert("word1");
     /// assert_eq!(vec![String::from("word1")], trie.all_words().unwrap());
     /// ```
-    pub fn insert(&mut self, word: &'a str) {
+    pub fn insert(&mut self, word: &str) {
         let characters = get_characters(word);
         let mut current = &mut self.root;
 
         for character in characters {
-            current = current.children.entry(character).or_insert_with(TrieDatalessNode::new);
+            current = current.children.entry(Box::from(character)).or_insert_with(TrieDatalessNode::new);
         }
 
         current.associate(false);

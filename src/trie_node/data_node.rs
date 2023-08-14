@@ -1,10 +1,10 @@
 use crate::data::YesData;
 use crate::trie_node::{TrieNode, NodeAssociation};
 
-pub type TrieDataNode<'a, D> = TrieNode<'a, D, YesData>;
+pub type TrieDataNode<D> = TrieNode<D, YesData>;
 
 /// Methods only on nodes that have data.
-impl<'a, D> TrieDataNode<'a, D> {
+impl<D> TrieDataNode<D> {
     /// Recursive function that drops all children maps and collects data
     /// regardless of having multiple words branching from them or not.
     pub(crate) fn remove_all_words_collect(&mut self, found_data: &mut Vec<D>) {

@@ -38,13 +38,13 @@ pub(crate) struct RemoveData<D> {
 /// Singular trie node that represents one character,
 /// it's children and a marker for word ending.
 #[derive(Debug, Default)]
-pub struct TrieNode<'a, D, HasData: CData> {
-    pub(crate) children: HashMap<&'a str, TrieNode<'a, D, HasData>>,
+pub struct TrieNode<D, HasData: CData> {
+    pub(crate) children: HashMap<Box<str>, TrieNode<D, HasData>>,
     word_end_association: NodeAssociation<D>,
     pd: PhantomData<HasData>
 }
 
-impl<'a, D, HasData: CData> TrieNode<'a, D, HasData> {
+impl<D, HasData: CData> TrieNode<D, HasData> {
     /// Returns a new instance of a TrieNode with the given character.
     pub(crate) fn new() -> Self {
         TrieNode {
@@ -70,7 +70,7 @@ impl<'a, D, HasData: CData> TrieNode<'a, D, HasData> {
             found_words.push(substring.to_string());
         }
 
-        self.children.iter().for_each(|(&character, node)| {
+        self.children.iter().for_each(|(character, node)| {
             node.find_words(&(substring.to_owned() + character), found_words)
         });
     }
@@ -97,7 +97,7 @@ impl<'a, D, HasData: CData> TrieNode<'a, D, HasData> {
             }
         }
 
-        self.children.iter().for_each(|(&character, node)| {
+        self.children.iter().for_each(|(character, node)| {
             node.words_min_max(&(substring.to_owned() + character), found_words, ord)
         });
     }

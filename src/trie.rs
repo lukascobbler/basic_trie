@@ -21,12 +21,12 @@ pub use dataless_trie::DatalessTrie;
 /// is used together with zero sized structs
 /// 'YesData' and 'NoData' to differentiate between two types.
 #[derive(Debug, Default)]
-pub struct Trie<'a, D, HasData: CData> {
-    root: TrieNode<'a, D, HasData>,
+pub struct Trie<D, HasData: CData> {
+    root: TrieNode<D, HasData>,
     pd: PhantomData<HasData>
 }
 
-impl<'a, D, HasData: CData> Trie<'a, D, HasData> {
+impl<D, HasData: CData> Trie<D, HasData> {
     /// Returns a new instance of the trie.
     pub fn new() -> Self {
         Trie {
