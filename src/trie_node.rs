@@ -2,10 +2,14 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+#[cfg(feature = "data")]
 mod data_node;
+
 mod dataless_node;
 
+#[cfg(feature = "data")]
 pub(crate) use data_node::TrieDataNode;
+
 pub(crate) use dataless_node::TrieDatalessNode;
 use crate::data::CData;
 
@@ -54,15 +58,6 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
         }
     }
 
-    /// Recursive function for getting the number of words from a given node.
-    pub(crate) fn number_of_words(&self) -> usize {
-        self.children
-            .values()
-            .map(|x| x.number_of_words())
-            .sum::<usize>()
-            + (self.is_associated()) as usize
-    }
-
     /// Recursive function for inserting found words from the given node and
     /// given starting substring.
     pub(crate) fn find_words(&self, substring: &str, found_words: &mut Vec<String>) {
@@ -104,27 +99,32 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
 
     /// Recursive function that drops all children maps
     /// regardless of having multiple words branching from them or not.
-    pub(crate) fn remove_all_words(&mut self) {
-        self.children.values_mut().for_each(|child| {
-            child.remove_all_words();
-        });
+    /// Counts the number of words removed.
+    pub(crate) fn remove_all_words(&mut self) -> usize {
+        let num_removed = self.children.values_mut().map(
+            |child| child.remove_all_words()
+        ).sum::<usize>() + self.is_associated() as usize;
 
         self.clear_children();
+
+        num_removed
     }
 
-    /// Function resets the association of a word.
+    /// Function resets the association of a word and returns the
+    /// previous association. If 'keep_word' is true, the association is only
+    /// reset.
     pub(crate) fn clear_word_end_association(&mut self, keep_word: bool) -> NodeAssociation<D> {
         let return_data = std::mem::take(&mut self.word_end_association);
         if keep_word {
             // If is present to ensure not calling this function
             // on a node that has no association.
-            // In case of calling this function on a dataless node, there
-            // is nothing to be done if the word should be kept.
             if let NodeAssociation::Data(_) = return_data {
-                self.word_end_association = NodeAssociation::Data(Vec::new())
+                self.associate(true);
+            } else if let NodeAssociation::NoData = return_data {
+                self.associate(false);
             }
         } else {
-            self.word_end_association = NodeAssociation::NoAssociation;
+            self.disassociate();
         }
 
         return_data
@@ -178,9 +178,15 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
         }
     }
 
-    /// Function unmarks the node as an end of a word.
-    pub(crate) fn disassociate(&mut self) {
-        self.word_end_association = NodeAssociation::NoAssociation;
+    /// Function unmarks the node as an end of a word. If a word was
+    /// previously associated, returns true else false.
+    pub(crate) fn disassociate(&mut self) -> bool {
+        if self.is_associated() {
+            self.word_end_association = NodeAssociation::NoAssociation;
+            true
+        } else {
+            false
+        }
     }
 
     /// Function returns true if any type of association is found for the word.

@@ -1,5 +1,7 @@
 //! # Basic Trie
 //!
+//! [![Test CI](https://github.com/lukascobbler/basic_trie/actions/workflows/rust.yml/badge.svg)](https://github.com/lukascobbler/basic_trie/actions/workflows/rust.yml)
+//!
 //! The trie data structure is used for quick access to words and
 //! data that should (could) be associated with them.
 //!
@@ -30,13 +32,60 @@
 //!
 //! ## Optional features
 //! - unicode support via the 'unicode' feature with the 'unicode-segmentation' crate (enabled by default)
+//! - data trie support via the 'data' feature (enabled by default)
 //!
 //! ## Dependencies
 //! - unicode-segmentation (enabled by default)
 //!
 //! ## License
-//!
 //! The software is licensed under the MIT license.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use basic_trie::DatalessTrie;
+//!
+//! let mut dataless_trie = DatalessTrie::new();
+//! dataless_trie.insert("eat");
+//! dataless_trie.insert("eating");
+//! dataless_trie.insert("wizard");
+//!
+//! let mut found_longest_words = dataless_trie.longest_words().unwrap();
+//! found_longest_words.sort();
+//!
+//! assert_eq!(vec![String::from("eating"), String::from("wizard")], found_longest_words);
+//! assert_eq!(vec![String::from("eat")], dataless_trie.shortest_words().unwrap());
+//! assert_eq!(3, dataless_trie.number_of_words());
+//! ```
+//!
+//! ```rust
+//! use basic_trie::DataTrie;
+//!
+//! let mut data_trie = DataTrie::<u32>::new();
+//! data_trie.insert("apple", 1);
+//! data_trie.insert("apple", 2);
+//! data_trie.insert_no_data("banana");
+//! data_trie.insert("avocado", 15);
+//!
+//! let mut found_data = data_trie.find_data_of_word("apple", false).unwrap();
+//! found_data.sort();
+//! assert_eq!(vec![&1, &2], found_data);
+//!
+//! let mut found_data = data_trie.find_data_of_word("a", true).unwrap();
+//! found_data.sort();
+//! assert_eq!(vec![&1, &2, &15], found_data);
+//!
+//! assert_eq!(vec![15], data_trie.remove_word("avocado").unwrap());
+//! ```
+//!
+//! ## Changelog
+//! - **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
+//! for word insertion for much better flexibility at the same logical memory cost.
+//! - **1.0.2** – Bug fixes.
+//! - **1.0.1** – `insert_no_data()` for `DataTrie`. Bugfixes.
+//! - **1.0.0** – Separation of `DataTrie` and `DatalessTrie`. Optimizing
+//! performance for `DatalessTrie`. Incompatible with older versions.
+//! - **<1.0.0** – Simple `Trie` with data and base features.
 
 mod trie;
 mod trie_node;
@@ -54,7 +103,9 @@ mod data {
     impl CData for NoData {}
 }
 
+#[cfg(feature = "data")]
 pub use trie::DataTrie;
+
 pub use trie::DatalessTrie;
 
 // Tests which are the same for both implementations,
@@ -87,19 +138,19 @@ mod general_trie_tests {
         let mut trie = DatalessTrie::new();
 
         trie.insert("a");
-        assert_eq!(trie.longest_words(), vec![String::from("a")]);
+        assert_eq!(trie.longest_words().unwrap(), vec![String::from("a")]);
 
         trie.insert("aa");
-        assert_eq!(trie.longest_words(), vec![String::from("aa")]);
+        assert_eq!(trie.longest_words().unwrap(), vec![String::from("aa")]);
 
         trie.insert("aaa");
-        assert_eq!(trie.longest_words(), vec![String::from("aaa")]);
+        assert_eq!(trie.longest_words().unwrap(), vec![String::from("aaa")]);
 
         trie.insert("aaaa");
-        assert_eq!(trie.longest_words(), vec![String::from("aaaa")]);
+        assert_eq!(trie.longest_words().unwrap(), vec![String::from("aaaa")]);
 
         trie.insert("a");
-        assert_eq!(trie.longest_words(), vec![String::from("aaaa")]);
+        assert_eq!(trie.longest_words().unwrap(), vec![String::from("aaaa")]);
     }
 
     #[test]
@@ -109,7 +160,7 @@ mod general_trie_tests {
         trie.insert("abba");
         trie.insert("cddc");
 
-        let mut found_words = trie.longest_words();
+        let mut found_words = trie.longest_words().unwrap();
         found_words.sort();
 
         assert_eq!(
@@ -123,19 +174,19 @@ mod general_trie_tests {
         let mut trie = DatalessTrie::new();
 
         trie.insert("a");
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+        assert_eq!(trie.shortest_words().unwrap(), vec![String::from("a")]);
 
         trie.insert("aa");
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+        assert_eq!(trie.shortest_words().unwrap(), vec![String::from("a")]);
 
         trie.insert("aaa");
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+        assert_eq!(trie.shortest_words().unwrap(), vec![String::from("a")]);
 
         trie.insert("aaaa");
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+        assert_eq!(trie.shortest_words().unwrap(), vec![String::from("a")]);
 
         trie.insert("a");
-        assert_eq!(trie.shortest_words(), vec![String::from("a")]);
+        assert_eq!(trie.shortest_words().unwrap(), vec![String::from("a")]);
     }
 
     #[test]
@@ -147,7 +198,7 @@ mod general_trie_tests {
         trie.insert("aa");
         trie.insert("bb");
 
-        let mut found_words = trie.shortest_words();
+        let mut found_words = trie.shortest_words().unwrap();
         found_words.sort();
 
         assert_eq!(vec![String::from("aa"), String::from("bb")], found_words);
@@ -227,6 +278,7 @@ mod general_trie_tests {
     }
 }
 
+#[cfg(feature = "data")]
 #[cfg(test)]
 mod data_trie_tests {
     use super::DataTrie;
@@ -539,6 +591,7 @@ mod data_trie_tests {
 
         assert_eq!(vec![String::from("ea")], trie.all_words().unwrap());
         assert_eq!(vec![3, 4, 5, 6], removed_data);
+        assert_eq!(1, trie.number_of_words());
     }
 
     #[test]
@@ -554,6 +607,7 @@ mod data_trie_tests {
 
         assert_eq!(None, trie.all_words());
         assert!(trie.is_empty());
+        assert_eq!(0, trie.number_of_words());
         assert_eq!(vec![3, 4, 5], removed_data);
     }
 
@@ -817,7 +871,7 @@ mod dataless_trie_tests {
     }
 
     #[test]
-    fn remove_prefix() {
+    fn remove_prefix_1() {
         let mut trie = DatalessTrie::new();
 
         trie.insert("eat");
@@ -829,5 +883,21 @@ mod dataless_trie_tests {
         trie.remove_words_from_prefix("ea");
 
         assert_eq!(vec![String::from("ea")], trie.all_words().unwrap());
+        assert_eq!(1, trie.number_of_words());
+    }
+
+    #[test]
+    fn remove_prefix_2() {
+        let mut trie = DatalessTrie::new();
+
+        trie.insert("a1");
+        trie.insert("b2");
+        trie.insert("c3");
+
+        trie.remove_words_from_prefix("");
+
+        assert_eq!(None, trie.all_words());
+        assert!(trie.is_empty());
+        assert_eq!(0, trie.number_of_words());
     }
 }

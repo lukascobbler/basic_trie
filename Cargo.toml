@@ -1,6 +1,6 @@
 [package]
 name = "basic_trie"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 authors = ["LukasCobbler"]
 license-file = "LICENSE"
@@ -14,5 +14,6 @@ documentation = "https://docs.rs/basic_trie/"
 unicode-segmentation = { version = "1.10.*", optional = true }
 
 [features]
-default = ["unicode"]
+default = ["unicode", "data"]
+data = []
 unicode = ["unicode-segmentation"]

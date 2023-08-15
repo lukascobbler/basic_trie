@@ -1,7 +1,9 @@
 //! Module containing the implementation details of the Trie.
 //! Users of this library do not need to have interactions with singular TrieNodes.
 
+#[cfg(feature = "data")]
 mod data_trie;
+
 mod dataless_trie;
 
 use std::cmp::Ordering;
@@ -13,7 +15,9 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::trie_node::TrieNode;
 use crate::data::CData;
 
+#[cfg(feature = "data")]
 pub use data_trie::DataTrie;
+
 pub use dataless_trie::DatalessTrie;
 
 /// Trie data structure. Generic implementation for common methods
@@ -23,7 +27,8 @@ pub use dataless_trie::DatalessTrie;
 #[derive(Debug, Default)]
 pub struct Trie<D, HasData: CData> {
     root: TrieNode<D, HasData>,
-    pd: PhantomData<HasData>
+    pd: PhantomData<HasData>,
+    len: usize
 }
 
 impl<D, HasData: CData> Trie<D, HasData> {
@@ -31,7 +36,8 @@ impl<D, HasData: CData> Trie<D, HasData> {
     pub fn new() -> Self {
         Trie {
             root: TrieNode::new(),
-            pd: PhantomData::<HasData>
+            pd: PhantomData::<HasData>,
+            len: 0
         }
     }
 
@@ -73,10 +79,10 @@ impl<D, HasData: CData> Trie<D, HasData> {
         current_node.find_words(&substring, &mut words_vec);
 
         if words_vec.is_empty() {
-            return None;
+            None
+        } else {
+            Some(words_vec)
         }
-
-        Some(words_vec)
     }
 
     /// Returns the vector of longest words found in the trie.
@@ -93,15 +99,19 @@ impl<D, HasData: CData> Trie<D, HasData> {
     /// trie.insert("somelongword");
     ///
     /// let longest_words = vec![String::from("somelongword"), String::from("verylongword")];
-    /// let mut found_words = trie.longest_words();
+    /// let mut found_words = trie.longest_words().unwrap();
     /// found_words.sort();
     /// assert_eq!(longest_words, found_words);
     /// ```
-    pub fn longest_words(&self) -> Vec<String> {
-        let mut empty_vec = Vec::new();
+    pub fn longest_words(&self) -> Option<Vec<String>> {
+        let mut words = Vec::new();
         self.root
-            .words_min_max("", &mut empty_vec, Ordering::Greater);
-        empty_vec
+            .words_min_max("", &mut words, Ordering::Greater);
+        if words.is_empty() {
+            None
+        } else {
+            Some(words)
+        }
     }
 
     /// Returns the vector of shortest words found in the trie.
@@ -118,14 +128,18 @@ impl<D, HasData: CData> Trie<D, HasData> {
     /// trie.insert("verylongword");
     ///
     /// let shortest_word = vec![String::from("rlyshort"), String::from("shortwrd")];
-    /// let mut found_words = trie.shortest_words();
+    /// let mut found_words = trie.shortest_words().unwrap();
     /// found_words.sort();
     /// assert_eq!(shortest_word, found_words);
     /// ```
-    pub fn shortest_words(&self) -> Vec<String> {
-        let mut empty_vec = Vec::new();
-        self.root.words_min_max("", &mut empty_vec, Ordering::Less);
-        empty_vec
+    pub fn shortest_words(&self) -> Option<Vec<String>> {
+        let mut words = Vec::new();
+        self.root.words_min_max("", &mut words, Ordering::Less);
+        if words.is_empty() {
+            None
+        } else {
+            Some(words)
+        }
     }
 
     /// Returns the number of words in the trie.
@@ -141,12 +155,16 @@ impl<D, HasData: CData> Trie<D, HasData> {
     /// trie.insert("word2");
     /// trie.insert("word3");
     /// trie.insert("word4");
+    /// assert_eq!(4, trie.number_of_words());
     ///
-    /// let number_of_words = 4;
-    /// assert_eq!(number_of_words, trie.number_of_words());
+    /// trie.remove_word("word1");
+    /// assert_eq!(3, trie.number_of_words());
+    ///
+    /// trie.remove_words_from_prefix("w");
+    /// assert_eq!(0, trie.number_of_words());
     /// ```
     pub fn number_of_words(&self) -> usize {
-        self.root.number_of_words()
+        self.len
     }
 
     /// Returns an option enum with a vector of owned strings
@@ -215,7 +233,7 @@ impl<D, HasData: CData> Trie<D, HasData> {
     /// assert!(trie.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.root.children.is_empty()
+        self.len == 0
     }
 
     /// Removes all words from the trie.
@@ -234,20 +252,33 @@ impl<D, HasData: CData> Trie<D, HasData> {
     ///
     /// trie.clear();
     /// assert!(trie.is_empty());
+    /// assert_eq!(0, trie.number_of_words());
     /// ```
     pub fn clear(&mut self) {
-        self.root.remove_all_words();
+        self.root.clear_children();
+        self.len = 0;
     }
 
-    #[doc(hidden)]
     /// Function for getting the last node in a character sequence.
-    /// Cannot make a mutable version of this function because the lifetimes
-    /// can't be calibrated to fit the rules.
     fn get_final_node(&self, query: &str) -> Option<&TrieNode<D, HasData>> {
         let mut current = &self.root;
 
         for character in get_characters(query) {
             current = match current.children.get(character) {
+                None => return None,
+                Some(next_node) => next_node
+            }
+        }
+
+        Some(current)
+    }
+
+    /// Function for getting the last node in a character sequence (mutable).
+    fn get_final_node_mut(&mut self, query: &str) -> Option<&mut TrieNode<D, HasData>> {
+        let mut current = &mut self.root;
+
+        for character in get_characters(query) {
+            current = match current.children.get_mut(character) {
                 None => return None,
                 Some(next_node) => next_node
             }

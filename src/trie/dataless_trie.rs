@@ -25,6 +25,7 @@ impl DatalessTrie {
         }
 
         current.associate(false);
+        self.len += 1;
     }
 
     /// Removes a word from the dataless trie.
@@ -47,23 +48,18 @@ impl DatalessTrie {
     /// assert_eq!(None, trie.all_words());
     /// ```
     pub fn remove_word(&mut self, word: &str) {
+        let Some(current) = self.get_final_node_mut(word) else { return };
+
         let characters = get_characters(word);
 
-        let mut current = &mut self.root;
-
-        for character in characters.iter() {
-            current = match current.children.get_mut(*character) {
-                None => return,
-                Some(next_node) => next_node
+        if !current.children.is_empty() {
+            return if current.disassociate() {
+                self.len -= 1;
             };
         }
 
-        if !current.children.is_empty() {
-            current.disassociate();
-            return;
-        }
-
         self.root.remove_one_word(characters.into_iter());
+        self.len -= 1;
     }
 
     /// Removes every word that begins with 'prefix'.
@@ -86,16 +82,12 @@ impl DatalessTrie {
     /// assert_eq!(vec![String::from("ea")], trie.all_words().unwrap());
     /// ```
     pub fn remove_words_from_prefix(&mut self, prefix: &str) {
-        let characters = get_characters(prefix);
-        let mut current = &mut self.root;
+        let Some(current) = self.get_final_node_mut(prefix) else { return };
 
-        for character in characters {
-            current = match current.children.get_mut(character) {
-                None => return,
-                Some(next_node) => next_node,
-            };
-        }
-
-        current.remove_all_words();
+        // (current.is_associated() as usize) is added (subtracted twice) to
+        // not remove the current word from the count. Literal '1' is not used
+        // because of calling this function on the root node where 1 should
+        // not be added.
+        self.len -= current.remove_all_words() - (current.is_associated() as usize);
     }
 }

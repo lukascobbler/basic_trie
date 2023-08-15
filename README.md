@@ -32,10 +32,57 @@ the pages the word is on with no added performance cost.
 
 ## Optional features
 - unicode support via the 'unicode' feature with the 'unicode-segmentation' crate (enabled by default)
+- data trie support via the 'data' feature (enabled by default)
 
 ## Dependencies
 - unicode-segmentation (enabled by default)
 
 ## License
-
 The software is licensed under the MIT license.
+
+## Examples
+
+ ```rust
+ use basic_trie::DatalessTrie;
+
+ let mut dataless_trie = DatalessTrie::new();
+ dataless_trie.insert("eat");
+ dataless_trie.insert("eating");
+ dataless_trie.insert("wizard");
+
+ let mut found_longest_words = dataless_trie.longest_words().unwrap();
+ found_longest_words.sort();
+
+ assert_eq!(vec![String::from("eating"), String::from("wizard")], found_longest_words);
+ assert_eq!(vec![String::from("eat")], dataless_trie.shortest_words().unwrap());
+ assert_eq!(3, dataless_trie.number_of_words());
+ ```
+
+ ```rust
+ use basic_trie::DataTrie;
+
+ let mut data_trie = DataTrie::<u32>::new();
+ data_trie.insert("apple", 1);
+ data_trie.insert("apple", 2);
+ data_trie.insert_no_data("banana");
+ data_trie.insert("avocado", 15);
+
+let mut found_data = data_trie.find_data_of_word("apple", false).unwrap();
+found_data.sort();
+assert_eq!(vec![&1, &2], found_data);
+
+let mut found_data = data_trie.find_data_of_word("a", true).unwrap();
+found_data.sort();
+assert_eq!(vec![&1, &2, &15], found_data);
+
+assert_eq!(vec![15], data_trie.remove_word("avocado").unwrap());
+ ```
+
+## Changelog
+- **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
+for word insertion for much better flexibility at the same logical memory cost.
+- **1.0.2** – Bug fixes.
+- **1.0.1** – `insert_no_data()` for `DataTrie`. Bugfixes.
+- **1.0.0** – Separation of `DataTrie` and `DatalessTrie`. Optimizing
+performance for `DatalessTrie`. Incompatible with older versions.
+- **<1.0.0** – Simple `Trie` with data and base features.
