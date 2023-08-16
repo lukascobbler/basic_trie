@@ -31,11 +31,13 @@ the pages the word is on with no added performance cost.
 - finding data of words based on exact match or prefix 
 
 ## Optional features
-- unicode support via the 'unicode' feature with the 'unicode-segmentation' crate (enabled by default)
+- unicode support via the 'unicode' feature with the `unicode-segmentation` crate (enabled by default)
 - data trie support via the 'data' feature (enabled by default)
+- serialization and deserialization via the 'serde' feature with the `serde` crate 
 
 ## Dependencies
-- unicode-segmentation (enabled by default)
+- `unicode-segmentation` (enabled by default)
+- `serde` (only with 'serde' feature flag)
 
 ## License
 The software is licensed under the MIT license.
@@ -79,6 +81,7 @@ assert_eq!(vec![15], data_trie.remove_word("avocado").unwrap());
  ```
 
 ## Changelog
+- **1.1.0** – Serialization with the `serde` crate and the 'serde' feature.
 - **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
 for word insertion for much better flexibility at the same logical memory cost.
 - **1.0.2** – Bug fixes.

@@ -2,6 +2,9 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 #[cfg(feature = "data")]
 mod data_node;
 
@@ -17,9 +20,17 @@ use crate::data::CData;
 /// of word end is it. It is used as a generic implementation for both the Dataless and Data
 /// Tries.
 #[derive(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub(crate) enum NodeAssociation<D> {
+    #[cfg_attr(feature = "serde", serde(rename = "D"))]
     Data(Vec<D>),
+    #[cfg_attr(feature = "serde", serde(rename = "NoD"))]
     NoData,
+    #[cfg_attr(feature = "serde", serde(rename = "NoA"))]
     NoAssociation
 }
 
@@ -42,9 +53,16 @@ pub(crate) struct RemoveData<D> {
 /// Singular trie node that represents one character,
 /// it's children and a marker for word ending.
 #[derive(Debug, Default)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct TrieNode<D, HasData: CData> {
     pub(crate) children: HashMap<Box<str>, TrieNode<D, HasData>>,
+    #[cfg_attr(feature = "serde", serde(rename = "wea"))]
     word_end_association: NodeAssociation<D>,
+    #[cfg_attr(feature = "serde", serde(skip))]
     pd: PhantomData<HasData>
 }
 

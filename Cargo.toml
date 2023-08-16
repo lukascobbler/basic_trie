@@ -1,6 +1,6 @@
 [package]
 name = "basic_trie"
-version = "1.0.3"
+version = "1.1.0"
 edition = "2021"
 authors = ["LukasCobbler"]
 license-file = "LICENSE"
@@ -10,10 +10,18 @@ description = "A simple Trie implementation in Rust"
 repository = "https://github.com/lukascobbler/basic_trie"
 documentation = "https://docs.rs/basic_trie/"
 
+[dev-dependencies]
+serde_json = "1.0.*"
+serde-pickle = "1.1.*"
+cbor = "0.4.1"
+peak_alloc = "0.2.0"
+
 [dependencies]
 unicode-segmentation = { version = "1.10.*", optional = true }
+serde_crate = { package = "serde", optional = true, version = "1.0.*", features = ["derive"] }
 
 [features]
 default = ["unicode", "data"]
 data = []
 unicode = ["unicode-segmentation"]
+serde = ["serde_crate"]

@@ -12,6 +12,10 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "unicode")]
 use unicode_segmentation::UnicodeSegmentation;
+
+#[cfg(feature = "serde")]
+use serde_crate::{Serialize, Deserialize};
+
 use crate::trie_node::TrieNode;
 use crate::data::CData;
 
@@ -25,6 +29,11 @@ pub use dataless_trie::DatalessTrie;
 /// is used together with zero sized structs
 /// 'YesData' and 'NoData' to differentiate between two types.
 #[derive(Debug, Default)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct Trie<D, HasData: CData> {
     root: TrieNode<D, HasData>,
     pd: PhantomData<HasData>,

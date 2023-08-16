@@ -31,41 +31,43 @@
 //! - finding data of words based on exact match or prefix
 //!
 //! ## Optional features
-//! - unicode support via the 'unicode' feature with the 'unicode-segmentation' crate (enabled by default)
+//! - unicode support via the 'unicode' feature with the `unicode-segmentation` crate (enabled by default)
 //! - data trie support via the 'data' feature (enabled by default)
+//! - serialization and deserialization via the 'serde' feature with the `serde` crate
 //!
 //! ## Dependencies
-//! - unicode-segmentation (enabled by default)
+//! - `unicode-segmentation` (enabled by default)
+//! - `serde` (only with 'serde' feature flag)
 //!
 //! ## License
 //! The software is licensed under the MIT license.
 //!
 //! ## Examples
 //!
-//! ```rust
-//! use basic_trie::DatalessTrie;
+//!  ```rust
+//!  use basic_trie::DatalessTrie;
 //!
-//! let mut dataless_trie = DatalessTrie::new();
-//! dataless_trie.insert("eat");
-//! dataless_trie.insert("eating");
-//! dataless_trie.insert("wizard");
+//!  let mut dataless_trie = DatalessTrie::new();
+//!  dataless_trie.insert("eat");
+//!  dataless_trie.insert("eating");
+//!  dataless_trie.insert("wizard");
 //!
-//! let mut found_longest_words = dataless_trie.longest_words().unwrap();
-//! found_longest_words.sort();
+//!  let mut found_longest_words = dataless_trie.longest_words().unwrap();
+//!  found_longest_words.sort();
 //!
-//! assert_eq!(vec![String::from("eating"), String::from("wizard")], found_longest_words);
-//! assert_eq!(vec![String::from("eat")], dataless_trie.shortest_words().unwrap());
-//! assert_eq!(3, dataless_trie.number_of_words());
-//! ```
+//!  assert_eq!(vec![String::from("eating"), String::from("wizard")], found_longest_words);
+//!  assert_eq!(vec![String::from("eat")], dataless_trie.shortest_words().unwrap());
+//!  assert_eq!(3, dataless_trie.number_of_words());
+//!  ```
 //!
-//! ```rust
-//! use basic_trie::DataTrie;
+//!  ```rust
+//!  use basic_trie::DataTrie;
 //!
-//! let mut data_trie = DataTrie::<u32>::new();
-//! data_trie.insert("apple", 1);
-//! data_trie.insert("apple", 2);
-//! data_trie.insert_no_data("banana");
-//! data_trie.insert("avocado", 15);
+//!  let mut data_trie = DataTrie::<u32>::new();
+//!  data_trie.insert("apple", 1);
+//!  data_trie.insert("apple", 2);
+//!  data_trie.insert_no_data("banana");
+//!  data_trie.insert("avocado", 15);
 //!
 //! let mut found_data = data_trie.find_data_of_word("apple", false).unwrap();
 //! found_data.sort();
@@ -76,9 +78,10 @@
 //! assert_eq!(vec![&1, &2, &15], found_data);
 //!
 //! assert_eq!(vec![15], data_trie.remove_word("avocado").unwrap());
-//! ```
+//!  ```
 //!
 //! ## Changelog
+//! - **1.1.0** – Serialization with the `serde` crate and the 'serde' feature.
 //! - **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
 //! for word insertion for much better flexibility at the same logical memory cost.
 //! - **1.0.2** – Bug fixes.
@@ -91,12 +94,25 @@ mod trie;
 mod trie_node;
 
 mod data {
+    #[cfg(feature = "serde")]
+    use serde_crate::{Deserialize, Serialize};
+
     pub trait CData {}
 
     #[derive(Debug)]
+    #[cfg_attr(
+        feature = "serde",
+        derive(Serialize, Deserialize),
+        serde(crate = "serde_crate")
+    )]
     pub struct YesData;
 
     #[derive(Debug)]
+    #[cfg_attr(
+        feature = "serde",
+        derive(Serialize, Deserialize),
+        serde(crate = "serde_crate")
+    )]
     pub struct NoData;
 
     impl CData for YesData {}
