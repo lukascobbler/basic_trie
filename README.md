@@ -38,6 +38,7 @@ the pages the word is on with no added performance cost.
 ## Dependencies
 - `unicode-segmentation` (enabled by default)
 - `serde` (only with 'serde' feature flag)
+- `fxhash`
 
 ## License
 The software is licensed under the MIT license.
@@ -81,6 +82,7 @@ assert_eq!(vec![15], data_trie.remove_word("avocado").unwrap());
  ```
 
 ## Changelog
+- **1.1.1** – Adding `FxHashMap` dependency for boosted performance.
 - **1.1.0** – Serialization with the `serde` crate and the 'serde' feature.
 - **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
 for word insertion for much better flexibility at the same logical memory cost.

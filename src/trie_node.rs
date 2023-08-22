@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 use std::marker::PhantomData;
 
 #[cfg(feature = "serde")]
@@ -59,7 +59,7 @@ pub(crate) struct RemoveData<D> {
     serde(crate = "serde_crate")
 )]
 pub struct TrieNode<D, HasData: CData> {
-    pub(crate) children: HashMap<Box<str>, TrieNode<D, HasData>>,
+    pub(crate) children: FxHashMap<Box<str>, TrieNode<D, HasData>>,
     #[cfg_attr(feature = "serde", serde(rename = "wea"))]
     word_end_association: NodeAssociation<D>,
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -70,7 +70,7 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
     /// Returns a new instance of a TrieNode with the given character.
     pub(crate) fn new() -> Self {
         TrieNode {
-            children: HashMap::new(),
+            children: FxHashMap::default(),
             word_end_association: NodeAssociation::NoAssociation,
             pd: PhantomData::<HasData>,
         }
@@ -219,6 +219,6 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
 
     /// Function removes all children of a node.
     pub(crate) fn clear_children(&mut self) {
-        self.children = HashMap::new();
+        self.children = FxHashMap::default();
     }
 }

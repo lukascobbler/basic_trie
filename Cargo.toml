@@ -1,6 +1,6 @@
 [package]
 name = "basic_trie"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 authors = ["LukasCobbler"]
 license-file = "LICENSE"
@@ -19,6 +19,7 @@ peak_alloc = "0.2.0"
 [dependencies]
 unicode-segmentation = { version = "1.10.*", optional = true }
 serde_crate = { package = "serde", optional = true, version = "1.0.*", features = ["derive"] }
+fxhash = "0.2.1"
 
 [features]
 default = ["unicode", "data"]
