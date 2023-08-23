@@ -1,3 +1,4 @@
+use std::ops;
 use crate::trie::{get_characters, Trie};
 use crate::trie_node::{NodeAssociation, TrieDataNode};
 use crate::data::YesData;
@@ -219,5 +220,33 @@ impl <D> DataTrie<D> {
                 Some(data_vec),
             _ => None
         }
+    }
+}
+
+impl<D> ops::Add for DataTrie<D> {
+    type Output = Trie<D, YesData>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let (smaller, mut bigger) = if self.len < rhs.len {
+            (self, rhs)
+        } else {
+            (rhs, self)
+        };
+
+        bigger.root += smaller.root;
+
+        bigger
+    }
+}
+
+impl<D> ops::AddAssign for DataTrie<D> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.root += rhs.root;
+    }
+}
+
+impl<D: PartialEq> PartialEq for DataTrie<D> {
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root
     }
 }
