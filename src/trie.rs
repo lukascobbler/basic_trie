@@ -9,6 +9,7 @@ mod dataless_trie;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::ops;
 
 #[cfg(feature = "unicode")]
 use unicode_segmentation::UnicodeSegmentation;
@@ -28,7 +29,7 @@ pub use dataless_trie::DatalessTrie;
 /// between Dataless and Data tries. Phantom data as a state machine
 /// is used together with zero sized structs
 /// 'YesData' and 'NoData' to differentiate between two types.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -294,6 +295,35 @@ impl<D, HasData: CData> Trie<D, HasData> {
         }
 
         Some(current)
+    }
+}
+
+impl<D, HasData: CData> ops::Add for Trie<D, HasData> {
+    type Output = Trie<D, HasData>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let (smaller, mut bigger) = if self.len < rhs.len {
+            (self, rhs)
+        } else {
+            (rhs, self)
+        };
+
+        bigger.root += smaller.root;
+
+        bigger
+    }
+}
+
+impl<D, HasData: CData> ops::AddAssign for Trie<D, HasData> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.root += rhs.root;
+    }
+}
+
+impl<D: PartialEq, HasData: CData> PartialEq for Trie<D, HasData> {
+    /// Operation == can be applied only to Tries whose data implements PartialEq.
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root
     }
 }
 

@@ -1,4 +1,3 @@
-use std::ops;
 use crate::data::YesData;
 use crate::trie_node::{TrieNode, NodeAssociation};
 
@@ -39,50 +38,5 @@ impl<D> TrieDataNode<D> {
         if let NodeAssociation::Data(vec) = &mut self.word_end_association {
             vec.push(data);
         }
-    }
-}
-
-impl<D> ops::AddAssign for TrieDataNode<D> {
-    fn add_assign(&mut self, rhs: Self) {
-        for (char, mut rhs_next_node) in rhs.children {
-            match self.children.remove(&*char) {
-                Some(mut self_next_node) => {
-                    // Edge case: associate self node if the other node is also associated
-                    // Example: when adding 'word' to 'word1', 'd' on 'word' needs to be associated
-                    if let NodeAssociation::Data(data_vec_rhs) = std::mem::take(&mut rhs_next_node.word_end_association) {
-                        if let NodeAssociation::Data(data_vec_self) = &mut self_next_node.word_end_association {
-                            data_vec_self.extend(data_vec_rhs);
-                        } else {
-                            self_next_node.word_end_association = NodeAssociation::Data(data_vec_rhs);
-                        }
-                    }
-                    self_next_node += rhs_next_node;
-                    self.children.insert(char, self_next_node);
-                },
-                None => {
-                    self.children.insert(char, rhs_next_node);
-                }
-            }
-        }
-    }
-}
-
-impl<D: PartialEq> PartialEq for TrieDataNode<D> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.children.keys().ne(other.children.keys()) {
-            return false;
-        }
-
-        if self.word_end_association != other.word_end_association {
-            return false;
-        }
-
-        self.children.iter()
-            .map(|(char, self_child)|
-                (self_child, other.children.get(char).unwrap())
-            )
-            .all(|(self_child, other_child)|
-                other_child == self_child
-            )
     }
 }

@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use fxhash::FxHashMap;
 use std::marker::PhantomData;
+use std::ops;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -19,7 +20,7 @@ use crate::data::CData;
 /// Helper enum for deciding if a singular TrieNode is an end of a word, and what type
 /// of word end is it. It is used as a generic implementation for both the Dataless and Data
 /// Tries.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -52,7 +53,7 @@ pub(crate) struct RemoveData<D> {
 
 /// Singular trie node that represents one character,
 /// it's children and a marker for word ending.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -220,5 +221,79 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
     /// Function removes all children of a node.
     pub(crate) fn clear_children(&mut self) {
         self.children = FxHashMap::default();
+    }
+}
+
+impl<D, HasData: CData> ops::AddAssign for TrieNode<D, HasData> {
+    /// Overriding the += operator on nodes.
+    /// Function adds two nodes based on the principle:
+    /// for every child node and character in the 'rhs' node:
+    /// - if the self node doesn't have that character in it's children map,
+    /// simply move the pointer to the self's children map without any extra cost;
+    /// - if the self node has that character, the node of that character (self's child)
+    /// is added with the 'rhc's' node.
+    /// An edge case exists when the 'rhc's' node has an association but self's node doesn't.
+    /// That association is handled based on the 'NodeAssociation' struct result of
+    /// 'rhc_next_node.word_end_association'. On 'NodeAssociation::Data', the self node vector
+    /// is either extended by the 'rhc' node vector or initialized with it.
+    /// On 'NodeAssociation::NoData', the self node association is only initialized as
+    /// 'NodeAssociation::NoData'.
+    fn add_assign(&mut self, rhs: Self) {
+        for (char, mut rhs_next_node) in rhs.children {
+            // Does self contain the character?
+            match self.children.remove(&*char) {
+                // The whole node is removed, as owned, operated on and returned in self's children.
+                Some(mut self_next_node) => {
+
+                    // Edge case: associate self node if the other node is also associated
+                    // Example: when adding 'word' to 'word1', 'd' on 'word' needs to be associated
+                    match std::mem::take(&mut rhs_next_node.word_end_association) {
+                        NodeAssociation::Data(data_vec_rhs) => {
+                            if let NodeAssociation::Data(data_vec_self) = &mut self_next_node.word_end_association {
+                                data_vec_self.extend(data_vec_rhs);
+                            } else {
+                                self_next_node.word_end_association = NodeAssociation::Data(data_vec_rhs);
+                            }
+                        },
+                        NodeAssociation::NoData => {
+                            self_next_node.associate(false);
+                        },
+                        NodeAssociation::NoAssociation => {}
+                    }
+
+                    self_next_node += rhs_next_node;
+                    self.children.insert(char, self_next_node);
+                },
+                // Self doesn't contain the character, no conflict arises.
+                // The whole 'rhs' node is just moved from 'rhs' into self.
+                None => {
+                    self.children.insert(char, rhs_next_node);
+                }
+            }
+        }
+    }
+}
+
+impl<D: PartialEq, HasData: CData> PartialEq for TrieNode<D, HasData> {
+    /// Operation == can be applied only to TrieNodes whose data implements PartialEq.
+    fn eq(&self, other: &Self) -> bool {
+        // If keys aren't equal, nodes aren't equal.
+        if self.children.keys().ne(other.children.keys()) {
+            return false;
+        }
+
+        // If associations aren't equal, two nodes aren't equal.
+        if self.word_end_association != other.word_end_association {
+            return false;
+        }
+
+        // Every child node that has the same key (character) must be equal.
+        self.children.iter()
+            .map(|(char, self_child)|
+                (self_child, other.children.get(char).unwrap())
+            )
+            .all(|(self_child, other_child)|
+                other_child == self_child
+            )
     }
 }

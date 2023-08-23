@@ -101,7 +101,7 @@ mod data {
 
     pub trait CData {}
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     #[cfg_attr(
         feature = "serde",
         derive(Serialize, Deserialize),
@@ -109,7 +109,7 @@ mod data {
     )]
     pub struct YesData;
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     #[cfg_attr(
         feature = "serde",
         derive(Serialize, Deserialize),
@@ -654,6 +654,146 @@ mod data_trie_tests {
         trie.insert("word1", "somedata");
         assert_eq!(vec![&"somedata"], trie.find_data_of_word("word1", false).unwrap());
     }
+
+    #[test]
+    fn equals() {
+        let mut data_trie_1 = DataTrie::new();
+        data_trie_1.insert("test", 1);
+
+        let mut data_trie_2 = DataTrie::new();
+        data_trie_2.insert("test", 1);
+
+        assert_eq!(data_trie_1, data_trie_2);
+    }
+
+    #[test]
+    fn add_two_tries_1() {
+        let mut t1 = DataTrie::<i32>::new();
+        t1.insert("word1", 1000);
+        t1.insert("word2", 1000);
+        t1.insert("apple", 1000);
+        t1.insert("banana", 1000);
+
+        let mut t2 = DataTrie::<i32>::new();
+        t2.insert("word3", 1000);
+        t2.insert("word4", 1000);
+        t2.insert("potato", 1000);
+        t2.insert("watermelon", 1000);
+
+        let t3 = t1 + t2;
+
+        let mut correct = DataTrie::<i32>::new();
+        correct.insert("word1", 1000);
+        correct.insert("word2", 1000);
+        correct.insert("apple", 1000);
+        correct.insert("banana", 1000);
+        correct.insert("word3", 1000);
+        correct.insert("word4", 1000);
+        correct.insert("potato", 1000);
+        correct.insert("watermelon", 1000);
+
+        let mut t3_words = t3.all_words().unwrap();
+        let mut correct_words = correct.all_words().unwrap();
+
+        t3_words.sort();
+        correct_words.sort();
+        assert_eq!(t3_words, correct_words);
+
+        let t3_data = t3.find_data_of_word("", true).unwrap();
+        assert_eq!(t3_data, Vec::from([&1000; 8]));
+    }
+
+    #[test]
+    fn add_two_tries_2() {
+        let mut t1 = DataTrie::<i32>::new();
+        t1.insert("word1", 1000);
+        t1.insert("word2", 1000);
+        t1.insert("apple", 1000);
+        t1.insert("banana", 1000);
+
+        let mut t2 = DataTrie::<i32>::new();
+        t2.insert("word3", 1000);
+        t2.insert("word4", 1000);
+        t2.insert("potato", 1000);
+        t2.insert("watermelon", 1000);
+
+        t1 += t2;
+
+        let mut correct = DataTrie::<i32>::new();
+        correct.insert("word1", 1000);
+        correct.insert("word2", 1000);
+        correct.insert("apple", 1000);
+        correct.insert("banana", 1000);
+        correct.insert("word3", 1000);
+        correct.insert("word4", 1000);
+        correct.insert("potato", 1000);
+        correct.insert("watermelon", 1000);
+
+        let mut t1_words = t1.all_words().unwrap();
+        let mut correct_words = correct.all_words().unwrap();
+
+        t1_words.sort();
+        correct_words.sort();
+        assert_eq!(t1_words, correct_words);
+
+        let t1_data = t1.find_data_of_word("", true).unwrap();
+        assert_eq!(t1_data, Vec::from([&1000; 8]));
+    }
+
+    #[test]
+    fn add_two_tries_3() {
+        let mut t1 = DataTrie::<i32>::new();
+        t1.insert("word1", 500);
+
+        let mut t2 = DataTrie::<i32>::new();
+        t2.insert("word2", 500);
+        t2.insert("word", 500);
+
+        t1 += t2;
+
+        let mut correct = DataTrie::<i32>::new();
+        correct.insert("word", 500);
+        correct.insert("word1", 500);
+        correct.insert("word2", 500);
+
+        let mut t1_words = t1.all_words().unwrap();
+        let mut correct_words = correct.all_words().unwrap();
+
+        t1_words.sort();
+        correct_words.sort();
+        assert_eq!(t1_words, correct_words);
+
+        let t1_data = t1.find_data_of_word("", true).unwrap();
+        assert_eq!(t1_data, Vec::from([&500; 3]));
+    }
+
+    #[test]
+    fn add_two_tries_4() {
+        let mut t1 = DataTrie::<i32>::new();
+        t1.insert("word1", 500);
+        t1.insert("word1", 500);
+        t1.insert("word1", 500);
+
+        let mut t2 = DataTrie::<i32>::new();
+        t2.insert("word1", 500);
+        t2.insert("word1", 500);
+        t2.insert("word1", 500);
+
+        t1 += t2;
+
+        let mut correct = DataTrie::<i32>::new();
+        correct.insert("word1", 500);
+
+        let mut t1_words = t1.all_words().unwrap();
+        let mut correct_words = correct.all_words().unwrap();
+
+        t1_words.sort();
+        correct_words.sort();
+        assert_eq!(t1_words, correct_words);
+
+        let t1_data = t1.find_data_of_word("", true).unwrap();
+        assert_eq!(t1_data, Vec::from([&500; 6]));
+    }
 }
 
 #[cfg(test)]
@@ -917,5 +1057,108 @@ mod dataless_trie_tests {
         assert_eq!(None, trie.all_words());
         assert!(trie.is_empty());
         assert_eq!(0, trie.number_of_words());
+    }
+
+    #[test]
+    fn equals() {
+        let mut dataless_trie_1 = DatalessTrie::new();
+        dataless_trie_1.insert("test");
+
+        let mut dataless_trie_2 = DatalessTrie::new();
+        dataless_trie_2.insert("test");
+
+        assert_eq!(dataless_trie_1, dataless_trie_2);
+    }
+
+    #[test]
+    fn add_two_tries_1() {
+        let mut t1 = DatalessTrie::new();
+        t1.insert("word1");
+        t1.insert("word2");
+        t1.insert("apple");
+        t1.insert("banana");
+
+        let mut t2 = DatalessTrie::new();
+        t2.insert("word3");
+        t2.insert("word4");
+        t2.insert("potato");
+        t2.insert("pineapple");
+
+        let t3 = t1 + t2;
+
+        let mut correct = DatalessTrie::new();
+        correct.insert("word1");
+        correct.insert("word2");
+        correct.insert("apple");
+        correct.insert("banana");
+        correct.insert("word3");
+        correct.insert("word4");
+        correct.insert("potato");
+        correct.insert("pineapple");
+
+        let mut t3_words = t3.all_words().unwrap();
+        let mut correct_words = correct.all_words().unwrap();
+
+        t3_words.sort();
+        correct_words.sort();
+        assert_eq!(t3_words, correct_words);
+    }
+
+    #[test]
+    fn add_two_tries_2() {
+        let mut t1 = DatalessTrie::new();
+        t1.insert("word1");
+        t1.insert("word2");
+        t1.insert("apple");
+        t1.insert("banana");
+
+        let mut t2 = DatalessTrie::new();
+        t2.insert("word3");
+        t2.insert("word4");
+        t2.insert("potato");
+        t2.insert("watermelon");
+
+        t1 += t2;
+
+        let mut correct = DatalessTrie::new();
+        correct.insert("word1");
+        correct.insert("word2");
+        correct.insert("apple");
+        correct.insert("banana");
+        correct.insert("word3");
+        correct.insert("word4");
+        correct.insert("potato");
+        correct.insert("watermelon");
+
+        let mut t1_words = t1.all_words().unwrap();
+        let mut correct_words = correct.all_words().unwrap();
+
+        t1_words.sort();
+        correct_words.sort();
+        assert_eq!(t1_words, correct_words);
+    }
+
+    #[test]
+    fn add_two_tries_3() {
+        let mut t1 = DatalessTrie::new();
+        t1.insert("word1");
+
+        let mut t2 = DatalessTrie::new();
+        t2.insert("word2");
+        t2.insert("word");
+
+        t1 += t2;
+
+        let mut correct = DatalessTrie::new();
+        correct.insert("word");
+        correct.insert("word1");
+        correct.insert("word2");
+
+        let mut t1_words = t1.all_words().unwrap();
+        let mut correct_words = correct.all_words().unwrap();
+
+        t1_words.sort();
+        correct_words.sort();
+        assert_eq!(t1_words, correct_words);
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "basic_trie"
-version = "1.1.1"
+version = "1.2.0"
 edition = "2021"
 authors = ["LukasCobbler"]
 license-file = "LICENSE"
@@ -13,7 +13,7 @@ documentation = "https://docs.rs/basic_trie/"
 [dev-dependencies]
 serde_json = "1.0.*"
 serde-pickle = "1.1.*"
-cbor = "0.4.1"
+cbor = "0.4.*"
 peak_alloc = "0.2.0"
 
 [dependencies]

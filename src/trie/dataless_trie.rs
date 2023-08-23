@@ -1,4 +1,3 @@
-use std::ops;
 use crate::trie::{get_characters, Trie};
 use crate::trie_node::{TrieDatalessNode};
 use crate::data::NoData;
@@ -90,33 +89,5 @@ impl DatalessTrie {
         // because of calling this function on the root node where 1 should
         // not be added.
         self.len -= current.remove_all_words() - (current.is_associated() as usize);
-    }
-}
-
-impl ops::Add for DatalessTrie {
-    type Output = Trie<(), NoData>;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        let (smaller, mut bigger) = if self.len < rhs.len {
-            (self, rhs)
-        } else {
-            (rhs, self)
-        };
-
-        bigger.root += smaller.root;
-
-        bigger
-    }
-}
-
-impl ops::AddAssign for DatalessTrie {
-    fn add_assign(&mut self, rhs: Self) {
-        self.root += rhs.root;
-    }
-}
-
-impl PartialEq for DatalessTrie {
-    fn eq(&self, other: &Self) -> bool {
-        self.root == other.root
     }
 }
