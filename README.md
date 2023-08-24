@@ -1,6 +1,8 @@
+<!-- cargo-sync-readme start -->
+
 # Basic Trie
 
-[![Test CI](https://github.com/lukascobbler/basic_trie/actions/workflows/rust.yml/badge.svg)](https://github.com/lukascobbler/basic_trie/actions/workflows/rust.yml)
+[Test CI](https://github.com/lukascobbler/basic_trie/actions/workflows/rust.yml)
 
 The trie data structure is used for quick access to words and
 data that should (could) be associated with them.
@@ -25,15 +27,17 @@ the pages the word is on with no added performance cost.
 - longest / shortest words in the trie
 - number of complete words in the trie
 - generic methods: `is_empty`, `contains`, `clear`
+- Trie equality with `==`
+- Trie merging with `+` or `+=`
 
 ## Data Trie features
 - generic type implementation for associating a word to any type, with zero trait constraints
-- finding data of words based on exact match or prefix 
+- finding data of words based on exact match or prefix
 
 ## Optional features
 - unicode support via the 'unicode' feature with the `unicode-segmentation` crate (enabled by default)
 - data trie support via the 'data' feature (enabled by default)
-- serialization and deserialization via the 'serde' feature with the `serde` crate 
+- serialization and deserialization via the 'serde' feature with the `serde` crate
 
 ## Dependencies
 - `unicode-segmentation` (enabled by default)
@@ -82,6 +86,8 @@ assert_eq!(vec![15], data_trie.remove_word("avocado").unwrap());
  ```
 
 ## Changelog
+- **1.2.0** – Equality and addition operators support between
+same Trie types via `==`, `+` and `+=`.
 - **1.1.1** – Adding `FxHashMap` dependency for boosted performance.
 - **1.1.0** – Serialization with the `serde` crate and the 'serde' feature.
 - **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
@@ -91,3 +97,5 @@ for word insertion for much better flexibility at the same logical memory cost.
 - **1.0.0** – Separation of `DataTrie` and `DatalessTrie`. Optimizing
 performance for `DatalessTrie`. Incompatible with older versions.
 - **<1.0.0** – Simple `Trie` with data and base features.
+
+<!-- cargo-sync-readme end -->

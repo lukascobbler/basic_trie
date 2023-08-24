@@ -5,10 +5,11 @@ edition = "2021"
 authors = ["LukasCobbler"]
 license-file = "LICENSE"
 readme = "README.md"
-keywords = ["trie"]
+keywords = ["trie", "collection", "generic"]
 description = "A simple Trie implementation in Rust"
 repository = "https://github.com/lukascobbler/basic_trie"
 documentation = "https://docs.rs/basic_trie/"
+categories = ["data-structures"]
 
 [dev-dependencies]
 serde_json = "1.0.*"

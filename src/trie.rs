@@ -301,6 +301,34 @@ impl<D, HasData: CData> Trie<D, HasData> {
 impl<D, HasData: CData> ops::Add for Trie<D, HasData> {
     type Output = Trie<D, HasData>;
 
+    /// Operation + merges two tries, leaving out duplicate words.
+    /// The smaller trie is always added to the larger one for efficiency.
+    /// In a DataTrie context, all data of the same word is moved
+    /// to the destination.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use basic_trie::DatalessTrie;
+    /// let mut dataless_trie_1 = DatalessTrie::new();
+    /// dataless_trie_1.insert("word1");
+    /// dataless_trie_1.insert("word2");
+    /// dataless_trie_1.insert("word");
+    ///
+    /// let mut dataless_trie_2 = DatalessTrie::new();
+    /// dataless_trie_2.insert("word3");
+    /// dataless_trie_2.insert("word");
+    ///
+    /// let mut correct = DatalessTrie::new();
+    /// correct.insert("word");
+    /// correct.insert("word1");
+    /// correct.insert("word2");
+    /// correct.insert("word3");
+    ///
+    /// let dataless_trie_3 = dataless_trie_1 + dataless_trie_2;
+    ///
+    /// assert_eq!(dataless_trie_3, correct);
+    /// ```
     fn add(self, rhs: Self) -> Self::Output {
         let (smaller, mut bigger) = if self.len < rhs.len {
             (self, rhs)
@@ -315,13 +343,58 @@ impl<D, HasData: CData> ops::Add for Trie<D, HasData> {
 }
 
 impl<D, HasData: CData> ops::AddAssign for Trie<D, HasData> {
+    /// Operation += merges two tries, leaving out duplicate words.
+    /// In a DataTrie context, all data of the same word is moved
+    /// to the destination.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use basic_trie::DatalessTrie;
+    /// let mut dataless_trie_1 = DatalessTrie::new();
+    /// dataless_trie_1.insert("word1");
+    /// dataless_trie_1.insert("word2");
+    /// dataless_trie_1.insert("word");
+    ///
+    /// let mut dataless_trie_2 = DatalessTrie::new();
+    /// dataless_trie_2.insert("word3");
+    /// dataless_trie_2.insert("word");
+    ///
+    /// let mut correct = DatalessTrie::new();
+    /// correct.insert("word");
+    /// correct.insert("word1");
+    /// correct.insert("word2");
+    /// correct.insert("word3");
+    ///
+    /// dataless_trie_1 += dataless_trie_2;
+    ///
+    /// assert_eq!(dataless_trie_1, correct);
+    /// ```
     fn add_assign(&mut self, rhs: Self) {
         self.root += rhs.root;
     }
 }
 
 impl<D: PartialEq, HasData: CData> PartialEq for Trie<D, HasData> {
-    /// Operation == can be applied only to Tries whose data implements PartialEq.
+    /// Operation == can be applied only to tries whose data implements PartialEq.
+    /// This includes the DatalessTrie by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use basic_trie::DatalessTrie;
+    /// let mut dataless_trie_1 = DatalessTrie::new();
+    /// dataless_trie_1.insert("test");
+    ///
+    /// let mut dataless_trie_2 = DatalessTrie::new();
+    /// dataless_trie_2.insert("test");
+    ///
+    /// assert_eq!(dataless_trie_1, dataless_trie_2);
+    ///
+    /// dataless_trie_2.insert("test2");
+    ///
+    /// assert_ne!(dataless_trie_1, dataless_trie_2);
+    /// ```
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }

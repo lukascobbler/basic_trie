@@ -25,6 +25,8 @@
 //! - longest / shortest words in the trie
 //! - number of complete words in the trie
 //! - generic methods: `is_empty`, `contains`, `clear`
+//! - Trie equality with `==`
+//! - Trie merging with `+` or `+=`
 //!
 //! ## Data Trie features
 //! - generic type implementation for associating a word to any type, with zero trait constraints
@@ -82,6 +84,8 @@
 //!  ```
 //!
 //! ## Changelog
+//! - **1.2.0** – Equality and addition operators support between
+//! same Trie types via `==`, `+` and `+=`.
 //! - **1.1.1** – Adding `FxHashMap` dependency for boosted performance.
 //! - **1.1.0** – Serialization with the `serde` crate and the 'serde' feature.
 //! - **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
