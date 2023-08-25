@@ -28,7 +28,7 @@ use crate::data::CData;
 )]
 pub(crate) enum NodeAssociation<D> {
     #[cfg_attr(feature = "serde", serde(rename = "D"))]
-    Data(Vec<D>),
+    Data(Box<Vec<D>>),
     #[cfg_attr(feature = "serde", serde(rename = "NoD"))]
     NoData,
     #[cfg_attr(feature = "serde", serde(rename = "NoA"))]
@@ -51,8 +51,7 @@ pub(crate) struct RemoveData<D> {
     pub(crate) data: NodeAssociation<D>
 }
 
-/// Singular trie node that represents one character,
-/// it's children and a marker for word ending.
+/// Singular trie node that represents it's children and a marker for word ending.
 #[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
@@ -68,7 +67,7 @@ pub struct TrieNode<D, HasData: CData> {
 }
 
 impl<D, HasData: CData> TrieNode<D, HasData> {
-    /// Returns a new instance of a TrieNode with the given character.
+    /// Returns a new instance of a TrieNode.
     pub(crate) fn new() -> Self {
         TrieNode {
             children: FxHashMap::default(),
@@ -158,10 +157,7 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
     /// - the node that represents an end to some word with the same prefix
     /// The last node's data is propagated all the way to the final return
     /// with the help of auxiliary 'RemoveData<D>' struct.
-    pub(crate) fn remove_one_word<'b, I>(&mut self, mut characters: I) -> RemoveData<D>
-        where
-            I: Iterator<Item = &'b str>,
-    {
+    pub(crate) fn remove_one_word<'b>(&mut self, mut characters: impl Iterator<Item = &'b str>) -> RemoveData<D> {
         let next_character = match characters.next() {
             None => return RemoveData {
                 must_keep: false,
@@ -191,7 +187,7 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
     pub(crate) fn associate(&mut self, data: bool) {
         if !self.is_associated() {
             match data {
-                true => self.word_end_association = NodeAssociation::Data(Vec::new()),
+                true => self.word_end_association = NodeAssociation::Data(Box::new(Vec::new())),
                 false => self.word_end_association = NodeAssociation::NoData
             }
         }
@@ -250,7 +246,7 @@ impl<D, HasData: CData> ops::AddAssign for TrieNode<D, HasData> {
                     match std::mem::take(&mut rhs_next_node.word_end_association) {
                         NodeAssociation::Data(data_vec_rhs) => {
                             if let NodeAssociation::Data(data_vec_self) = &mut self_next_node.word_end_association {
-                                data_vec_self.extend(data_vec_rhs);
+                                data_vec_self.extend(*data_vec_rhs);
                             } else {
                                 self_next_node.word_end_association = NodeAssociation::Data(data_vec_rhs);
                             }

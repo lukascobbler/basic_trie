@@ -88,7 +88,7 @@ impl <D> DataTrie<D> {
             return match current.clear_word_end_association(false) {
                 NodeAssociation::Data(data_vec) if !data_vec.is_empty() => {
                     self.len -= 1;
-                    Some(data_vec)
+                    Some(*data_vec)
                 },
                 _ => None
             }
@@ -99,7 +99,7 @@ impl <D> DataTrie<D> {
         match self.root.remove_one_word(characters.into_iter()).data {
             NodeAssociation::Data(data_vec) if !data_vec.is_empty() => {
                 self.len -= 1;
-                Some(data_vec)
+                Some(*data_vec)
             },
             _ => None
         }
@@ -216,7 +216,7 @@ impl <D> DataTrie<D> {
 
         match current.clear_word_end_association(true) {
             NodeAssociation::Data(data_vec) if !data_vec.is_empty() =>
-                Some(data_vec),
+                Some(*data_vec),
             _ => None
         }
     }
