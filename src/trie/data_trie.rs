@@ -194,6 +194,35 @@ impl <D> DataTrie<D> {
         };
     }
 
+    /// Returns a vector of mutable references to data of some word.
+    /// Can't be used for soft matching of word data.
+    ///
+    /// ```
+    /// use basic_trie::DataTrie;
+    /// let mut trie = DataTrie::new();
+    ///
+    /// trie.insert("word1", "somedata");
+    /// trie.insert("word2", "somemoredata");
+    /// trie.insert("word1", "evenmoredata");
+    ///
+    /// let mut found_data = trie.find_data_of_word_mut("word1").unwrap();
+    ///
+    /// *found_data[0] = "changeddata";
+    /// *found_data[1] = "bigchanges";
+    ///
+    /// let hard_data = vec![&"changeddata", &"bigchanges"];
+    /// assert_eq!(hard_data, trie.find_data_of_word("word1", false).unwrap());
+    /// ```
+    pub fn find_data_of_word_mut(&mut self, query: &str) -> Option<Vec<&mut D>> {
+        let Some(current) = self.get_final_node_mut(query) else { return None };
+
+        match current.get_association_mut() {
+            NodeAssociation::Data(data_vec) if !data_vec.is_empty() =>
+                Some(data_vec.iter_mut().collect()),
+            _ => None
+        }
+    }
+
     /// Clears and returns data of some word. If the word is not found,
     /// or there is no data associated with the word, nothing happens.
     ///

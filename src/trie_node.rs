@@ -214,6 +214,11 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
         &self.word_end_association
     }
 
+    /// Function returns the mutable node association.
+    pub(crate) fn get_association_mut(&mut self) -> &mut NodeAssociation<D> {
+        &mut self.word_end_association
+    }
+
     /// Function removes all children of a node.
     pub(crate) fn clear_children(&mut self) {
         self.children = FxHashMap::default();
