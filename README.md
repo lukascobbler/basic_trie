@@ -86,6 +86,7 @@ assert_eq!(vec![15], data_trie.remove_word("avocado").unwrap());
  ```
 
 ## Changelog
+- **1.2.2** – More memory optimizations with Box.
 - **1.2.1** – Memory performance upgrade with Box. Mutable data retrieval.
 - **1.2.0** – Equality and addition operators support between
 same Trie types via `==`, `+` and `+=`.

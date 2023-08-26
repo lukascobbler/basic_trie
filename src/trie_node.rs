@@ -59,7 +59,7 @@ pub(crate) struct RemoveData<D> {
     serde(crate = "serde_crate")
 )]
 pub struct TrieNode<D, HasData: CData> {
-    pub(crate) children: FxHashMap<Box<str>, TrieNode<D, HasData>>,
+    pub(crate) children: Box<FxHashMap<Box<str>, TrieNode<D, HasData>>>,
     #[cfg_attr(feature = "serde", serde(rename = "wea"))]
     word_end_association: NodeAssociation<D>,
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -70,7 +70,7 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
     /// Returns a new instance of a TrieNode.
     pub(crate) fn new() -> Self {
         TrieNode {
-            children: FxHashMap::default(),
+            children: Box::new(FxHashMap::default()),
             word_end_association: NodeAssociation::NoAssociation,
             pd: PhantomData::<HasData>,
         }
@@ -209,11 +209,13 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
         !matches!(self.word_end_association, NodeAssociation::NoAssociation)
     }
 
+    #[cfg(feature = "data")]
     /// Function returns the node association.
     pub(crate) fn get_association(&self) -> &NodeAssociation<D> {
         &self.word_end_association
     }
 
+    #[cfg(feature = "data")]
     /// Function returns the mutable node association.
     pub(crate) fn get_association_mut(&mut self) -> &mut NodeAssociation<D> {
         &mut self.word_end_association
@@ -221,7 +223,7 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
 
     /// Function removes all children of a node.
     pub(crate) fn clear_children(&mut self) {
-        self.children = FxHashMap::default();
+        self.children = Default::default();
     }
 }
 
@@ -240,7 +242,7 @@ impl<D, HasData: CData> ops::AddAssign for TrieNode<D, HasData> {
     /// On 'NodeAssociation::NoData', the self node association is only initialized as
     /// 'NodeAssociation::NoData'.
     fn add_assign(&mut self, rhs: Self) {
-        for (char, mut rhs_next_node) in rhs.children {
+        for (char, mut rhs_next_node) in rhs.children.into_iter() {
             // Does self contain the character?
             match self.children.remove(&*char) {
                 // The whole node is removed, as owned, operated on and returned in self's children.
