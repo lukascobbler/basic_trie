@@ -1,10 +1,20 @@
+use std::marker::PhantomData;
+use arrayvec::ArrayString;
 use crate::trie::{get_characters, Trie};
-use crate::trie_node::{TrieDatalessNode};
+use crate::trie_node::{TrieDatalessNode, TrieNode};
 use crate::data::NoData;
 
 pub type DatalessTrie = Trie<(), NoData>;
 
 impl DatalessTrie {
+    pub fn new() -> Self {
+        DatalessTrie {
+            root: TrieNode::new(),
+            pd: PhantomData::<NoData>,
+            len: 0
+        }
+    }
+
     /// Insert a word into the trie, with no corresponding data.
     ///
     /// # Examples
@@ -21,11 +31,15 @@ impl DatalessTrie {
         let mut current = &mut self.root;
 
         for character in characters {
-            current = current.children.entry(Box::from(character)).or_insert_with(TrieDatalessNode::new);
+            current = current.children.entry(
+                ArrayString::from(character).unwrap()).or_insert_with(TrieDatalessNode::new);
+        }
+
+        if !current.is_associated() {
+            self.len += 1;
         }
 
         current.associate(false);
-        self.len += 1;
     }
 
     /// Removes a word from the dataless trie.

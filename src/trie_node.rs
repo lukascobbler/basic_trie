@@ -5,6 +5,7 @@ use std::ops;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use thin_vec::ThinVec;
 
 #[cfg(feature = "data")]
 mod data_node;
@@ -28,7 +29,7 @@ use crate::data::CData;
 )]
 pub(crate) enum NodeAssociation<D> {
     #[cfg_attr(feature = "serde", serde(rename = "D"))]
-    Data(Box<Vec<D>>),
+    Data(ThinVec<D>),
     #[cfg_attr(feature = "serde", serde(rename = "NoD"))]
     NoData,
     #[cfg_attr(feature = "serde", serde(rename = "NoA"))]
@@ -59,7 +60,7 @@ pub(crate) struct RemoveData<D> {
     serde(crate = "serde_crate")
 )]
 pub struct TrieNode<D, HasData: CData> {
-    pub(crate) children: Box<FxHashMap<Box<str>, TrieNode<D, HasData>>>,
+    pub(crate) children: Box<FxHashMap<arrayvec::ArrayString<4>, TrieNode<D, HasData>>>,
     #[cfg_attr(feature = "serde", serde(rename = "wea"))]
     word_end_association: NodeAssociation<D>,
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -70,7 +71,7 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
     /// Returns a new instance of a TrieNode.
     pub(crate) fn new() -> Self {
         TrieNode {
-            children: Box::new(FxHashMap::default()),
+            children: Default::default(),
             word_end_association: NodeAssociation::NoAssociation,
             pd: PhantomData::<HasData>,
         }
@@ -187,7 +188,7 @@ impl<D, HasData: CData> TrieNode<D, HasData> {
     pub(crate) fn associate(&mut self, data: bool) {
         if !self.is_associated() {
             match data {
-                true => self.word_end_association = NodeAssociation::Data(Box::new(Vec::new())),
+                true => self.word_end_association = NodeAssociation::Data(ThinVec::new()),
                 false => self.word_end_association = NodeAssociation::NoData
             }
         }
@@ -253,7 +254,7 @@ impl<D, HasData: CData> ops::AddAssign for TrieNode<D, HasData> {
                     match std::mem::take(&mut rhs_next_node.word_end_association) {
                         NodeAssociation::Data(data_vec_rhs) => {
                             if let NodeAssociation::Data(data_vec_self) = &mut self_next_node.word_end_association {
-                                data_vec_self.extend(*data_vec_rhs);
+                                data_vec_self.extend(data_vec_rhs);
                             } else {
                                 self_next_node.word_end_association = NodeAssociation::Data(data_vec_rhs);
                             }

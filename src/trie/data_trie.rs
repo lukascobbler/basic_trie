@@ -1,10 +1,21 @@
+use std::marker::PhantomData;
+use arrayvec::ArrayString;
 use crate::trie::{get_characters, Trie};
-use crate::trie_node::{NodeAssociation, TrieDataNode};
+use crate::trie_node::{NodeAssociation, TrieDataNode, TrieNode};
 use crate::data::YesData;
 
 pub type DataTrie<D> = Trie<D, YesData>;
 
-impl <D> DataTrie<D> {
+impl<D> DataTrie<D> {
+    /// Returns a new instance of the trie.
+    pub fn new() -> Self {
+        DataTrie {
+            root: TrieNode::new(),
+            pd: PhantomData::<YesData>,
+            len: 0
+        }
+    }
+
     /// Insert a word into the trie, with the corresponding data.
     ///
     /// # Examples
@@ -21,12 +32,16 @@ impl <D> DataTrie<D> {
         let mut current = &mut self.root;
 
         for character in characters {
-            current = current.children.entry(Box::from(character)).or_insert_with(TrieDataNode::new);
+            current = current.children.entry(
+                ArrayString::from(character).unwrap()).or_insert_with(TrieDataNode::new);
+        }
+
+        if !current.is_associated() {
+            self.len += 1;
         }
 
         current.associate(true);
         current.push_data(associated_data);
-        self.len += 1;
     }
 
     /// Insert a word into the trie, with no corresponding data.
@@ -52,11 +67,15 @@ impl <D> DataTrie<D> {
         let mut current = &mut self.root;
 
         for character in characters {
-            current = current.children.entry(Box::from(character)).or_insert_with(TrieDataNode::new);
+            current = current.children.entry(
+                ArrayString::from(character).unwrap()).or_insert_with(TrieDataNode::new);
+        }
+
+        if !current.is_associated() {
+            self.len += 1;
         }
 
         current.associate(true);
-        self.len += 1;
     }
 
     /// Removes a word from the trie and returns data associated with that word.
@@ -88,7 +107,7 @@ impl <D> DataTrie<D> {
             return match current.clear_word_end_association(false) {
                 NodeAssociation::Data(data_vec) if !data_vec.is_empty() => {
                     self.len -= 1;
-                    Some(*data_vec)
+                    Some(data_vec.into_iter().collect())
                 },
                 _ => None
             }
@@ -99,7 +118,7 @@ impl <D> DataTrie<D> {
         match self.root.remove_one_word(characters.into_iter()).data {
             NodeAssociation::Data(data_vec) if !data_vec.is_empty() => {
                 self.len -= 1;
-                Some(*data_vec)
+                Some(data_vec.into_iter().collect())
             },
             _ => None
         }
@@ -245,7 +264,7 @@ impl <D> DataTrie<D> {
 
         match current.clear_word_end_association(true) {
             NodeAssociation::Data(data_vec) if !data_vec.is_empty() =>
-                Some(*data_vec),
+                Some(data_vec.into_iter().collect()),
             _ => None
         }
     }

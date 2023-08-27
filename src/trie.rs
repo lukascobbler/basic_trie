@@ -42,15 +42,6 @@ pub struct Trie<D, HasData: CData> {
 }
 
 impl<D, HasData: CData> Trie<D, HasData> {
-    /// Returns a new instance of the trie.
-    pub fn new() -> Self {
-        Trie {
-            root: TrieNode::new(),
-            pd: PhantomData::<HasData>,
-            len: 0
-        }
-    }
-
     /// Returns an option enum with a vector of owned strings
     /// representing all found words that begin with "query".
     /// If no words are found, None is returned.

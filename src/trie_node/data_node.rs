@@ -13,7 +13,7 @@ impl<D> TrieDataNode<D> {
         ).sum::<usize>() + self.is_associated() as usize;
 
         if let NodeAssociation::Data(data_vec) = std::mem::take(&mut self.word_end_association) {
-            found_data.extend(*data_vec);
+            found_data.extend(data_vec);
         }
 
         self.clear_children();

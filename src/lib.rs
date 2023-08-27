@@ -41,6 +41,8 @@
 //! - `unicode-segmentation` (enabled by default)
 //! - `serde` (only with 'serde' feature flag)
 //! - `fxhash`
+//! - `thin-vec`
+//! - `arrayvec`
 //!
 //! ## License
 //! The software is licensed under the MIT license.
@@ -84,6 +86,7 @@
 //!  ```
 //!
 //! ## Changelog
+//! - **1.2.3** – Adding dependencies for even more memory layout optimisations.
 //! - **1.2.2** – More memory optimizations with Box.
 //! - **1.2.1** – Memory performance upgrade with Box. Mutable data retrieval.
 //! - **1.2.0** – Equality and addition operators support between
