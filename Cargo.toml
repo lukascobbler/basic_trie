@@ -1,6 +1,6 @@
 [package]
 name = "basic_trie"
-version = "1.2.3"
+version = "2.0.0"
 edition = "2021"
 authors = ["LukasCobbler"]
 license-file = "LICENSE"
@@ -14,11 +14,11 @@ categories = ["data-structures"]
 [dev-dependencies]
 serde_json = "1.0.*"
 serde-pickle = "1.1.*"
-cbor = "0.4.*"
 peak_alloc = "0.2.0"
+rand = "0.8.*"
 
 [dependencies]
-unicode-segmentation = { version = "1.10.*", optional = true }
+unicode-segmentation = { version = "1.11.0", optional = true }
 serde_crate = { package = "serde", optional = true, version = "1.0.*", features = ["derive"] }
 fxhash = "0.2.1"
 thin-vec = "0.2.12"

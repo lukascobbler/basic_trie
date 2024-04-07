@@ -1,21 +1,9 @@
 use fxhash::FxHashMap;
 use std::cmp::Ordering;
 use std::ops;
-use thin_vec::ThinVec;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
-
-type WordEnd<D> = Option<ThinVec<D>>;
-
-/// Helper struct for returning multiple values for deleting data.
-/// It is needed because the 'must_keep' value will at some point change
-/// from false to true, but the data stays the same from the beginning of
-/// unwinding.
-pub(crate) struct RemoveData<D> {
-    must_keep: bool,
-    pub(crate) data: WordEnd<D>,
-}
 
 /// Singular trie node that represents its children and a marker for word ending.
 #[derive(Debug, Default, Clone)]
@@ -24,69 +12,20 @@ pub(crate) struct RemoveData<D> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct TrieDataNode<D> {
+pub struct TrieDatalessNode {
     #[cfg_attr(feature = "serde", serde(rename = "c"))]
-    pub(crate) children: Box<FxHashMap<arrayvec::ArrayString<4>, TrieDataNode<D>>>,
-    #[cfg_attr(feature = "serde", serde(rename = "wed"))]
-    word_end_data: WordEnd<D>,
+    pub(crate) children: Box<FxHashMap<arrayvec::ArrayString<4>, TrieDatalessNode>>,
+    #[cfg_attr(feature = "serde", serde(rename = "we"))]
+    word_end: bool,
 }
 
-/// Methods only on nodes that have data.
-impl<D> TrieDataNode<D> {
+impl TrieDatalessNode {
     /// Returns a new instance of a TrieNode.
     pub(crate) fn new() -> Self {
-        TrieDataNode {
+        TrieDatalessNode {
             children: Default::default(),
-            word_end_data: None,
+            word_end: false,
         }
-    }
-
-    /// Recursive function that drops all children maps and collects data
-    /// regardless of having multiple words branching from them or not.
-    pub(crate) fn remove_all_words_collect(&mut self, found_data: &mut Vec<D>) -> usize {
-        let num_removed = self
-            .children
-            .values_mut()
-            .map(|child| child.remove_all_words_collect(found_data))
-            .sum::<usize>()
-            + self.is_associated() as usize;
-
-        if let Some(data_vec) = self.disassociate() {
-            found_data.extend(data_vec);
-        }
-
-        self.clear_children();
-
-        num_removed
-    }
-
-    /// Recursive function finds every node that is an end of a word and appends
-    /// its data as references to the passed vector.
-    pub(crate) fn generate_all_data<'a>(&'a self, found_data: &mut Vec<&'a D>) {
-        if let Some(data_vec) = &self.word_end_data {
-            found_data.extend(data_vec.iter());
-        }
-
-        self.children
-            .values()
-            .for_each(|x| x.generate_all_data(found_data));
-    }
-
-    /// Recursive function finds every node that is an end of a word and appends
-    /// its data as mutable references to the passed vector.
-    pub(crate) fn generate_all_data_mut<'a>(&'a mut self, found_data: &mut Vec<&'a mut D>) {
-        if let Some(data_vec) = &mut self.word_end_data {
-            found_data.extend(data_vec.iter_mut());
-        }
-
-        self.children
-            .values_mut()
-            .for_each(|x| x.generate_all_data_mut(found_data));
-    }
-
-    /// Function pushes data to the association vector.
-    pub(crate) fn push_data(&mut self, data: D) {
-        self.get_association_mut().as_mut().unwrap().push(data);
     }
 
     /// Recursive function for inserting found words from the given node and
@@ -133,17 +72,20 @@ impl<D> TrieDataNode<D> {
         });
     }
 
-    /// Function resets the association of a word and returns the
-    /// previous association. If 'keep_word' is true, the association is only
-    /// reset.
-    pub(crate) fn clear_word_end_association(&mut self, keep_word: bool) -> WordEnd<D> {
-        let return_data = self.disassociate();
+    /// Recursive function that drops all children maps
+    /// regardless of having multiple words branching from them or not.
+    /// Counts the number of words removed.
+    pub(crate) fn remove_all_words(&mut self) -> usize {
+        let num_removed = self
+            .children
+            .values_mut()
+            .map(|child| child.remove_all_words())
+            .sum::<usize>()
+            + self.is_associated() as usize;
 
-        if keep_word && return_data.is_some() {
-            self.associate();
-        }
+        self.clear_children();
 
-        return_data
+        num_removed
     }
 
     /// Recursive function for removing and freeing memory of a word that is not needed anymore.
@@ -158,13 +100,11 @@ impl<D> TrieDataNode<D> {
     pub(crate) fn remove_one_word<'b>(
         &mut self,
         mut characters: impl Iterator<Item = &'b str>,
-    ) -> RemoveData<D> {
+    ) -> bool {
         let next_character = match characters.next() {
             None => {
-                return RemoveData {
-                    must_keep: false,
-                    data: self.disassociate()
-                }
+                self.disassociate();
+                return false;
             }
             Some(char) => char,
         };
@@ -172,43 +112,26 @@ impl<D> TrieDataNode<D> {
         let next_node = self.children.get_mut(next_character).unwrap();
         let must_keep = next_node.remove_one_word(characters);
 
-        if self.children.len() > 1 || must_keep.must_keep {
-            return RemoveData {
-                must_keep: true,
-                data: must_keep.data,
-            };
+        if self.children.len() > 1 || must_keep {
+            return true;
         }
         self.clear_children();
 
-        RemoveData {
-            must_keep: self.is_associated(),
-            data: must_keep.data,
-        }
+        self.is_associated()
     }
 
     /// Function marks the node as an end of a word.
     pub(crate) fn associate(&mut self) {
-        self.word_end_data = Some(ThinVec::new());
+        self.word_end = true;
     }
 
-    /// Function unmarks the node as an end of a word and returns the data.
-    pub(crate) fn disassociate(&mut self) -> WordEnd<D> {
-        self.word_end_data.take()
+    /// Function unmarks the node as an end of a word.
+    pub(crate) fn disassociate(&mut self) {
+        self.word_end = false;
     }
 
-    /// Function returns true if an association is found for the word.
     pub(crate) fn is_associated(&self) -> bool {
-        self.word_end_data.is_some()
-    }
-
-    /// Function returns the node association.
-    pub(crate) fn get_association(&self) -> &WordEnd<D> {
-        &self.word_end_data
-    }
-
-    /// Function returns the mutable node association.
-    pub(crate) fn get_association_mut(&mut self) -> &mut WordEnd<D> {
-        &mut self.word_end_data
+        self.word_end
     }
 
     /// Function removes all children of a node.
@@ -217,31 +140,30 @@ impl<D> TrieDataNode<D> {
     }
 }
 
-impl<D> ops::AddAssign for TrieDataNode<D> {
+impl ops::AddAssign for TrieDatalessNode {
     /// Overriding the += operator on nodes.
     /// Function adds two nodes based on the principle:
     /// for every child node and character in the 'rhs' node:
-    /// - if the self node doesn't have that character in its children map,
+    /// - if the self node doesn't have that character in it's children map,
     /// simply move the pointer to the self's children map without any extra cost;
     /// - if the self node has that character, the node of that character (self's child)
     /// is added with the 'rhc's' node.
     /// An edge case exists when the 'rhc's' node has an association but self's node doesn't.
-    /// That association is handled based on the result of 'rhc_next_node.word_end_data'.
-    /// On Some(data), the self node vector is initialized with the 'rhc' node vector.
+    /// That association is handled based on the 'NodeAssociation' struct result of
+    /// 'rhc_next_node.word_end_association'. On 'NodeAssociation::Data', the self node vector
+    /// is either extended by the 'rhc' node vector or initialized with it.
+    /// On 'NodeAssociation::NoData', the self node association is only initialized as
+    /// 'NodeAssociation::NoData'.
     fn add_assign(&mut self, rhs: Self) {
-        for (char, mut rhs_next_node) in rhs.children.into_iter() {
+        for (char, rhs_next_node) in rhs.children.into_iter() {
             // Does self contain the character?
             match self.children.remove(&*char) {
                 // The whole node is removed, as owned, operated on and returned in self's children.
                 Some(mut self_next_node) => {
                     // Edge case: associate self node if the other node is also associated
                     // Example: when adding 'word' to 'word1', 'd' on 'word' needs to be associated
-                    if let Some(data_vec_rhs) = rhs_next_node.word_end_data.take() {
-                        if let Some(data_vec_self) = &mut self_next_node.word_end_data {
-                            data_vec_self.extend(data_vec_rhs);
-                        } else {
-                            self_next_node.word_end_data = Some(data_vec_rhs);
-                        }
+                    if rhs_next_node.word_end {
+                        self_next_node.word_end = true;
                     }
 
                     self_next_node += rhs_next_node;
@@ -257,16 +179,15 @@ impl<D> ops::AddAssign for TrieDataNode<D> {
     }
 }
 
-impl<D: PartialEq> PartialEq for TrieDataNode<D> {
-    /// Operation == can be applied only to TrieNodes whose data implements PartialEq.
+impl PartialEq for TrieDatalessNode {
     fn eq(&self, other: &Self) -> bool {
         // If keys aren't equal, nodes aren't equal.
         if self.children.keys().ne(other.children.keys()) {
             return false;
         }
 
-        // If associations aren't equal, two nodes aren't equal.
-        if self.word_end_data != other.word_end_data {
+        // If the node on one trie is a word end, and on the other it isn't, two nodes aren't equal.
+        if self.word_end != other.word_end {
             return false;
         }
 
