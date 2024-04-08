@@ -261,7 +261,7 @@ impl<D: PartialEq> PartialEq for TrieDataNode<D> {
     /// Operation == can be applied only to TrieNodes whose data implements PartialEq.
     fn eq(&self, other: &Self) -> bool {
         // If keys aren't equal, nodes aren't equal.
-        if self.children.keys().ne(other.children.keys()) {
+        if !(self.children.len() == other.children.len() && self.children.keys().all(|k| other.children.contains_key(k))) {
             return false;
         }
 

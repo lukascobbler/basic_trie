@@ -149,11 +149,8 @@ impl ops::AddAssign for TrieDatalessNode {
     /// - if the self node has that character, the node of that character (self's child)
     /// is added with the 'rhc's' node.
     /// An edge case exists when the 'rhc's' node has an association but self's node doesn't.
-    /// That association is handled based on the 'NodeAssociation' struct result of
-    /// 'rhc_next_node.word_end_association'. On 'NodeAssociation::Data', the self node vector
-    /// is either extended by the 'rhc' node vector or initialized with it.
-    /// On 'NodeAssociation::NoData', the self node association is only initialized as
-    /// 'NodeAssociation::NoData'.
+    /// That association is handled based on the result of 'rhc_next_node.word_end'.
+    /// On true, the self node vector is initialized with the 'rhc' node vector.
     fn add_assign(&mut self, rhs: Self) {
         for (char, rhs_next_node) in rhs.children.into_iter() {
             // Does self contain the character?
@@ -182,7 +179,7 @@ impl ops::AddAssign for TrieDatalessNode {
 impl PartialEq for TrieDatalessNode {
     fn eq(&self, other: &Self) -> bool {
         // If keys aren't equal, nodes aren't equal.
-        if self.children.keys().ne(other.children.keys()) {
+        if !(self.children.len() == other.children.len() && self.children.keys().all(|k| other.children.contains_key(k))) {
             return false;
         }
 
