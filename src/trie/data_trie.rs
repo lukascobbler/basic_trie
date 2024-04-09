@@ -137,7 +137,7 @@ impl<D> DataTrie<D> {
 
     /// Removes every word that begins with 'prefix' and collects all removed data.
     /// Not including the word 'prefix' if it's present.
-    /// If the word 'prefix' is not found, None is returned.
+    /// If the sequence 'prefix' is not found, None is returned.
     ///
     /// # Examples
     ///
@@ -284,9 +284,7 @@ impl<D> DataTrie<D> {
 
         current
             .clear_word_end_association(true)
-            .map(|data_vec| {
-                data_vec.into_iter().collect()
-            })
+            .map(|data_vec| data_vec.into_iter().collect())
     }
 
     /// Returns an option enum with a vector of owned strings
@@ -396,6 +394,28 @@ impl<D> DataTrie<D> {
     /// ```
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    /// Returns the number of words that start with 'prefix'.
+    /// If the sequence 'prefix' is not found, None is returned.
+    ///
+    /// # Examples
+    /// ```
+    /// use basic_trie::DataTrie;
+    /// let mut data_trie = DataTrie::new();
+    ///
+    /// data_trie.insert("word1", 1);
+    /// data_trie.insert("word2", 2);
+    /// data_trie.insert("word3", 3);
+    /// data_trie.insert("word4", 4);
+    /// data_trie.insert("word", 0);
+    /// assert_eq!(4, data_trie.len_prefix("word"));
+    /// ```
+    pub fn len_prefix(&self, prefix: &str) -> usize {
+        match self.get_final_node(prefix) {
+            None => 0,
+            Some(node) => node.count_words() - node.is_associated() as usize,
+        }
     }
 
     /// Returns an option enum with a vector of owned strings
@@ -551,6 +571,9 @@ impl<D> ops::Add for DataTrie<D> {
 
         bigger.root += smaller.root;
 
+        // Number of words needs to be recalculated.
+        bigger.len = bigger.root.count_words();
+
         bigger
     }
 }
@@ -583,6 +606,9 @@ impl<D> ops::AddAssign for DataTrie<D> {
     /// ```
     fn add_assign(&mut self, rhs: Self) {
         self.root += rhs.root;
+
+        // Number of words needs to be recalculated.
+        self.len = self.root.count_words();
     }
 }
 
@@ -606,6 +632,6 @@ impl<D: PartialEq> PartialEq for DataTrie<D> {
     /// assert_ne!(data_trie_1, data_trie_2);
     /// ```
     fn eq(&self, other: &Self) -> bool {
-        self.root == other.root
+        self.len == other.len && self.root == other.root
     }
 }

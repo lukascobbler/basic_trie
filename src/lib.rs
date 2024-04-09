@@ -632,10 +632,7 @@ mod data_trie_tests {
         assert_eq!(vec![String::from("word1")], trie.get_all());
 
         trie.insert("word1", "somedata");
-        assert_eq!(
-            vec![&"somedata"],
-            trie.get_data("word1", false).unwrap()
-        );
+        assert_eq!(vec![&"somedata"], trie.get_data("word1", false).unwrap());
     }
 
     #[test]

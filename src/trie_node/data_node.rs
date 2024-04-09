@@ -60,6 +60,15 @@ impl<D> TrieDataNode<D> {
         num_removed
     }
 
+    /// Recursive function that counts the number of words from a starting node.
+    pub(crate) fn count_words(&self) -> usize {
+        self.children
+            .values()
+            .map(|child| child.count_words())
+            .sum::<usize>()
+            + self.is_associated() as usize
+    }
+
     /// Recursive function finds every node that is an end of a word and appends
     /// its data as references to the passed vector.
     pub(crate) fn generate_all_data<'a>(&'a self, found_data: &mut Vec<&'a D>) {
@@ -163,7 +172,7 @@ impl<D> TrieDataNode<D> {
             None => {
                 return RemoveData {
                     must_keep: false,
-                    data: self.disassociate()
+                    data: self.disassociate(),
                 }
             }
             Some(char) => char,
@@ -261,12 +270,22 @@ impl<D: PartialEq> PartialEq for TrieDataNode<D> {
     /// Operation == can be applied only to TrieNodes whose data implements PartialEq.
     fn eq(&self, other: &Self) -> bool {
         // If keys aren't equal, nodes aren't equal.
-        if !(self.children.len() == other.children.len() && self.children.keys().all(|k| other.children.contains_key(k))) {
+        if !(self.children.len() == other.children.len()
+            && self.children.keys().all(|k| other.children.contains_key(k)))
+        {
             return false;
         }
 
         // If associations aren't equal, two nodes aren't equal.
-        if self.word_end_data != other.word_end_data {
+        if !match (&self.word_end_data, &other.word_end_data) {
+            (Some(self_vec), Some(other_vec)) => {
+                // If they both have an association, return true only if the data is identical
+                self_vec.len() == other_vec.len() && self_vec.iter().all(|k| other_vec.contains(k))
+            }
+            // If they both don't have an association, return true
+            (None, None) => true,
+            _ => false,
+        } {
             return false;
         }
 

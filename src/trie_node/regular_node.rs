@@ -88,6 +88,15 @@ impl TrieDatalessNode {
         num_removed
     }
 
+    /// Recursive function that counts the number of words from a starting node.
+    pub(crate) fn count_words(&self) -> usize {
+        self.children
+            .values()
+            .map(|child| child.count_words())
+            .sum::<usize>()
+            + self.is_associated() as usize
+    }
+
     /// Recursive function for removing and freeing memory of a word that is not needed anymore.
     /// The algorithm first finds the last node of a word given in the form of a character iterator,
     /// then it frees the maps and unwinds to the first node that should not be deleted.
@@ -179,7 +188,9 @@ impl ops::AddAssign for TrieDatalessNode {
 impl PartialEq for TrieDatalessNode {
     fn eq(&self, other: &Self) -> bool {
         // If keys aren't equal, nodes aren't equal.
-        if !(self.children.len() == other.children.len() && self.children.keys().all(|k| other.children.contains_key(k))) {
+        if !(self.children.len() == other.children.len()
+            && self.children.keys().all(|k| other.children.contains_key(k)))
+        {
             return false;
         }
 

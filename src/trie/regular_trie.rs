@@ -233,6 +233,28 @@ impl Trie {
         self.len
     }
 
+    /// Returns the number of words that start with 'prefix'.
+    /// If the sequence 'prefix' is not found, None is returned.
+    ///
+    /// # Examples
+    /// ```
+    /// use basic_trie::Trie;
+    /// let mut trie = Trie::new();
+    ///
+    /// trie.insert("word1");
+    /// trie.insert("word2");
+    /// trie.insert("word3");
+    /// trie.insert("word4");
+    /// trie.insert("word");
+    /// assert_eq!(4, trie.len_prefix("word"));
+    /// ```
+    pub fn len_prefix(&self, prefix: &str) -> usize {
+        match self.get_final_node(prefix) {
+            None => 0,
+            Some(node) => node.count_words() - node.is_associated() as usize,
+        }
+    }
+
     /// Returns an option enum with a vector of owned strings
     /// representing all words in the trie.
     /// Order is not guaranteed.
@@ -386,6 +408,9 @@ impl ops::Add for Trie {
 
         bigger.root += smaller.root;
 
+        // Number of words needs to be recalculated.
+        bigger.len = bigger.root.count_words();
+
         bigger
     }
 }
@@ -418,6 +443,9 @@ impl ops::AddAssign for Trie {
     /// ```
     fn add_assign(&mut self, rhs: Self) {
         self.root += rhs.root;
+
+        // Number of words needs to be recalculated.
+        self.len = self.root.count_words();
     }
 }
 
@@ -439,6 +467,6 @@ impl PartialEq for Trie {
     /// assert_ne!(trie_1, trie_2);
     /// ```
     fn eq(&self, other: &Self) -> bool {
-        self.root == other.root
+        self.len == other.len && self.root == other.root
     }
 }
