@@ -33,16 +33,17 @@ the pages the word is on with no added performance cost.
 - finding data of words based on exact match or prefix
 
 ### Optional features
-- unicode support via the 'unicode' feature with the `unicode-segmentation` crate (enabled by default)
+- Unicode support via the 'Unicode' feature with the `unicode-segmentation` and `unicode-normalization`
+crates (enabled by default)
 - data trie support via the 'data' feature (enabled by default)
 - serialization and deserialization via the 'serde' feature with the `serde` crate
 
 ### Dependencies
 - `unicode-segmentation` (enabled by default)
+- `unicode-normalization` (enabled by default)
 - `serde` (only with 'serde' feature flag)
 - `fxhash`
 - `thin-vec`
-- `arrayvec`
 
 ### License
 The software is licensed under the MIT license.
@@ -87,17 +88,19 @@ assert_eq!(vec![15], data_trie.remove("avocado").unwrap());
  ```
 
 ## Changelog
+- **2.1.0** - Child nodes are now represented differently based on the number of children. Faster
+processing and less memory usage. Using STD's `char` type to represent everything. 2024. edition.
 - **2.0.0** - Major redesign: increased memory efficiency for the regular Trie (used to be Dataless Trie);
 Changed API names to better match the standard library; splitting the two implementations code-wise thus
 fixing the documentation not rendering bug.
-- **1.2.3** – Adding dependencies for even more memory layout optimisations.
-- **1.2.2** – More memory optimisations with Box.
+- **1.2.3** – Adding dependencies for even more memory layout optimizations.
+- **1.2.2** – More memory optimizations with Box.
 - **1.2.1** – Memory performance upgrade with Box. Mutable data retrieval.
 - **1.2.0** – Equality and addition operators support between
 same Trie types via `==`, `+` and `+=`.
 - **1.1.1** – Adding `FxHashMap` dependency for boosted performance.
 - **1.1.0** – Serialization with the `serde` crate and the 'serde' feature.
-- **1.0.3** – Optimisation of `number_of_words()`. Removing lifetime requirements
+- **1.0.3** – Optimization of `number_of_words()`. Removing lifetime requirements
 for word insertion for much better flexibility at the same logical memory cost.
 - **1.0.2** – Bug fixes.
 - **1.0.1** – `insert_no_data()` for `DataTrie`. Bugfixes.

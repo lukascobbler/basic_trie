@@ -33,7 +33,8 @@
 //! - finding data of words based on exact match or prefix
 //!
 //! ## Optional features
-//! - Unicode support via the 'Unicode' feature with the `unicode-segmentation` crate (enabled by default)
+//! - Unicode support via the 'Unicode' feature with the `unicode-segmentation` and `unicode-normalization` 
+//! crates (enabled by default)
 //! - data trie support via the 'data' feature (enabled by default)
 //! - serialization and deserialization via the 'serde' feature with the `serde` crate
 //!
