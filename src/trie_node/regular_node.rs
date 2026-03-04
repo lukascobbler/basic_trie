@@ -1,20 +1,22 @@
-use fxhash::FxHashMap;
 use std::cmp::Ordering;
 use std::ops;
 
+use crate::child_storage::ChildStorage;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+#[cfg(feature = "unicode")]
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Singular trie node that represents its children and a marker for word ending.
-#[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
+#[derive(Default, Debug)]
 pub struct TrieDatalessNode {
     #[cfg_attr(feature = "serde", serde(rename = "c"))]
-    pub(crate) children: Box<FxHashMap<arrayvec::ArrayString<4>, TrieDatalessNode>>,
+    pub(crate) children: ChildStorage<TrieDatalessNode>,
     #[cfg_attr(feature = "serde", serde(rename = "we"))]
     word_end: bool,
 }
@@ -30,14 +32,16 @@ impl TrieDatalessNode {
 
     /// Recursive function for inserting found words from the given node and
     /// given starting substring.
-    pub(crate) fn find_words(&self, substring: &str, found_words: &mut Vec<String>) {
+    pub(crate) fn find_words(&self, substring: &mut String, found_words: &mut Vec<String>) {
         if self.is_associated() {
             found_words.push(substring.to_string());
         }
 
-        self.children.iter().for_each(|(character, node)| {
-            node.find_words(&(substring.to_owned() + character), found_words)
-        });
+        for (&character, node) in self.children.iter() {
+            substring.push(character);
+            node.find_words(substring, found_words);
+            substring.pop();
+        }
     }
 
     /// The recursive function for finding a vector of shortest and longest words in the TrieNode consists of:
@@ -45,31 +49,57 @@ impl TrieDatalessNode {
     /// - matching lengths of found words in combination with the passed ordering.
     pub(crate) fn words_min_max(
         &self,
-        substring: &str,
+        substring: &mut String,
+        current_visual_len: usize,
         found_words: &mut Vec<String>,
+        current_best_len: &mut Option<usize>,
+        #[cfg(feature = "unicode")] is_path_pure_ascii: bool,
         ord: Ordering,
     ) {
-        'word: {
-            if self.is_associated() {
-                if let Some(found) = found_words.first() {
-                    match substring.len().cmp(&found.len()) {
-                        Ordering::Less if ord == Ordering::Less => {
-                            found_words.clear();
-                        }
-                        Ordering::Greater if ord == Ordering::Greater => {
-                            found_words.clear();
-                        }
-                        Ordering::Equal => (),
-                        _ => break 'word,
+        if self.is_associated() {
+            match current_best_len {
+                Some(best_len) => match current_visual_len.cmp(best_len) {
+                    o if o == ord => {
+                        *best_len = current_visual_len;
+                        found_words.clear();
+                        found_words.push(substring.clone());
                     }
+                    Ordering::Equal => {
+                        found_words.push(substring.clone());
+                    }
+                    _ => {}
+                },
+                None => {
+                    *current_best_len = Some(current_visual_len);
+                    found_words.push(substring.clone());
                 }
-                found_words.push(substring.to_string());
             }
         }
 
-        self.children.iter().for_each(|(character, node)| {
-            node.words_min_max(&(substring.to_owned() + character), found_words, ord)
-        });
+        for (&character, node) in self.children.iter() {
+            substring.push(character);
+
+            #[cfg(feature = "unicode")]
+            let (next_visual_len, next_is_ascii) = if is_path_pure_ascii && character.is_ascii() {
+                (current_visual_len + 1, true)
+            } else {
+                (substring.graphemes(true).count(), false)
+            };
+
+            #[cfg(not(feature = "unicode"))]
+            let next_visual_len = current_visual_len + 1;
+
+            node.words_min_max(
+                substring,
+                next_visual_len,
+                found_words,
+                current_best_len,
+                #[cfg(feature = "unicode")]
+                next_is_ascii,
+                ord,
+            );
+            substring.pop();
+        }
     }
 
     /// Recursive function that drops all children maps
@@ -106,10 +136,7 @@ impl TrieDatalessNode {
     /// - the node that represents an end to some word with the same prefix
     /// The last node's data is propagated all the way to the final return
     /// with the help of auxiliary 'RemoveData<D>' struct.
-    pub(crate) fn remove_one_word<'b>(
-        &mut self,
-        mut characters: impl Iterator<Item = &'b str>,
-    ) -> bool {
+    pub(crate) fn remove_one_word(&mut self, mut characters: impl Iterator<Item = char>) -> bool {
         let next_character = match characters.next() {
             None => {
                 self.disassociate();
@@ -153,17 +180,17 @@ impl ops::AddAssign for TrieDatalessNode {
     /// Overriding the += operator on nodes.
     /// Function adds two nodes based on the principle:
     /// for every child node and character in the 'rhs' node:
-    /// - if the self node doesn't have that character in it's children map,
+    /// - if the self node doesn't have that character in its children map,
     /// simply move the pointer to the self's children map without any extra cost;
     /// - if the self node has that character, the node of that character (self's child)
-    /// is added with the 'rhc's' node.
-    /// An edge case exists when the 'rhc's' node has an association but self's node doesn't.
+    /// is added with the 'rhs's' node.
+    /// An edge case exists when the 'rhs's' node has an association but self's node doesn't.
     /// That association is handled based on the result of 'rhc_next_node.word_end'.
     /// On true, the self node vector is initialized with the 'rhc' node vector.
     fn add_assign(&mut self, rhs: Self) {
         for (char, rhs_next_node) in rhs.children.into_iter() {
             // Does self contain the character?
-            match self.children.remove(&*char) {
+            match self.children.remove(char) {
                 // The whole node is removed, as owned, operated on and returned in self's children.
                 Some(mut self_next_node) => {
                     // Edge case: associate self node if the other node is also associated
@@ -173,12 +200,12 @@ impl ops::AddAssign for TrieDatalessNode {
                     }
 
                     self_next_node += rhs_next_node;
-                    self.children.insert(char, self_next_node);
+                    self.children.insert_direct(char, self_next_node);
                 }
                 // Self doesn't contain the character, no conflict arises.
                 // The whole 'rhs' node is just moved from 'rhs' into self.
                 None => {
-                    self.children.insert(char, rhs_next_node);
+                    self.children.insert_direct(char, rhs_next_node);
                 }
             }
         }
@@ -188,9 +215,7 @@ impl ops::AddAssign for TrieDatalessNode {
 impl PartialEq for TrieDatalessNode {
     fn eq(&self, other: &Self) -> bool {
         // If keys aren't equal, nodes aren't equal.
-        if !(self.children.len() == other.children.len()
-            && self.children.keys().all(|k| other.children.contains_key(k)))
-        {
+        if !self.children.has_same_keys(&other.children) {
             return false;
         }
 
@@ -202,7 +227,7 @@ impl PartialEq for TrieDatalessNode {
         // Every child node that has the same key (character) must be equal.
         self.children
             .iter()
-            .map(|(char, self_child)| (self_child, other.children.get(char).unwrap()))
+            .map(|(char, self_child)| (self_child, other.children.get(*char).unwrap()))
             .all(|(self_child, other_child)| other_child == self_child)
     }
 }

@@ -5,6 +5,7 @@ use randomizer::Randomizer;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Instant;
+#[cfg(feature = "unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
 #[global_allocator]
@@ -42,6 +43,7 @@ pub fn generate_random_lines(x: usize, y: usize) -> BigData {
     }
 }
 
+#[cfg(feature = "unicode")]
 #[test]
 fn overall_regular() {
     let number_of_words = 500_000;

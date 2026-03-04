@@ -1,10 +1,12 @@
-use fxhash::FxHashMap;
 use std::cmp::Ordering;
-use std::ops;
+use std::fmt::Debug;
+use std::{fmt, ops};
 use thin_vec::ThinVec;
 
+use crate::child_storage::ChildStorage;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use unicode_segmentation::UnicodeSegmentation;
 
 type WordEnd<D> = Option<ThinVec<D>>;
 
@@ -18,7 +20,6 @@ pub(crate) struct RemoveData<D> {
 }
 
 /// Singular trie node that represents its children and a marker for word ending.
-#[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -26,9 +27,18 @@ pub(crate) struct RemoveData<D> {
 )]
 pub struct TrieDataNode<D> {
     #[cfg_attr(feature = "serde", serde(rename = "c"))]
-    pub(crate) children: Box<FxHashMap<arrayvec::ArrayString<4>, TrieDataNode<D>>>,
+    pub(crate) children: ChildStorage<TrieDataNode<D>>,
     #[cfg_attr(feature = "serde", serde(rename = "wed"))]
     word_end_data: WordEnd<D>,
+}
+
+impl<D> Default for TrieDataNode<D> {
+    fn default() -> Self {
+        Self {
+            children: ChildStorage::default(),
+            word_end_data: None,
+        }
+    }
 }
 
 /// Methods only on nodes that have data.
@@ -100,14 +110,16 @@ impl<D> TrieDataNode<D> {
 
     /// Recursive function for inserting found words from the given node and
     /// given starting substring.
-    pub(crate) fn find_words(&self, substring: &str, found_words: &mut Vec<String>) {
+    pub(crate) fn find_words(&self, substring: &mut String, found_words: &mut Vec<String>) {
         if self.is_associated() {
             found_words.push(substring.to_string());
         }
 
-        self.children.iter().for_each(|(character, node)| {
-            node.find_words(&(substring.to_owned() + character), found_words)
-        });
+        for (&character, node) in self.children.iter() {
+            substring.push(character);
+            node.find_words(substring, found_words);
+            substring.pop();
+        }
     }
 
     /// The recursive function for finding a vector of shortest and longest words in the TrieNode consists of:
@@ -115,31 +127,57 @@ impl<D> TrieDataNode<D> {
     /// - matching lengths of found words in combination with the passed ordering.
     pub(crate) fn words_min_max(
         &self,
-        substring: &str,
+        substring: &mut String,
+        current_visual_len: usize,
         found_words: &mut Vec<String>,
+        current_best_len: &mut Option<usize>,
+        #[cfg(feature = "unicode")] is_path_pure_ascii: bool,
         ord: Ordering,
     ) {
-        'word: {
-            if self.is_associated() {
-                if let Some(found) = found_words.first() {
-                    match substring.len().cmp(&found.len()) {
-                        Ordering::Less if ord == Ordering::Less => {
-                            found_words.clear();
-                        }
-                        Ordering::Greater if ord == Ordering::Greater => {
-                            found_words.clear();
-                        }
-                        Ordering::Equal => (),
-                        _ => break 'word,
+        if self.is_associated() {
+            match current_best_len {
+                Some(best_len) => match current_visual_len.cmp(best_len) {
+                    o if o == ord => {
+                        *best_len = current_visual_len;
+                        found_words.clear();
+                        found_words.push(substring.clone());
                     }
+                    Ordering::Equal => {
+                        found_words.push(substring.clone());
+                    }
+                    _ => {}
+                },
+                None => {
+                    *current_best_len = Some(current_visual_len);
+                    found_words.push(substring.clone());
                 }
-                found_words.push(substring.to_string());
             }
         }
 
-        self.children.iter().for_each(|(character, node)| {
-            node.words_min_max(&(substring.to_owned() + character), found_words, ord)
-        });
+        for (&character, node) in self.children.iter() {
+            substring.push(character);
+
+            #[cfg(feature = "unicode")]
+            let (next_visual_len, next_is_ascii) = if is_path_pure_ascii && character.is_ascii() {
+                (current_visual_len + 1, true)
+            } else {
+                (substring.graphemes(true).count(), false)
+            };
+
+            #[cfg(not(feature = "unicode"))]
+            let next_visual_len = current_visual_len + 1;
+
+            node.words_min_max(
+                substring,
+                next_visual_len,
+                found_words,
+                current_best_len,
+                #[cfg(feature = "unicode")]
+                next_is_ascii,
+                ord,
+            );
+            substring.pop();
+        }
     }
 
     /// Function resets the association of a word and returns the
@@ -166,7 +204,7 @@ impl<D> TrieDataNode<D> {
     /// with the help of auxiliary 'RemoveData<D>' struct.
     pub(crate) fn remove_one_word<'b>(
         &mut self,
-        mut characters: impl Iterator<Item = &'b str>,
+        mut characters: impl Iterator<Item = char>,
     ) -> RemoveData<D> {
         let next_character = match characters.next() {
             None => {
@@ -240,7 +278,7 @@ impl<D> ops::AddAssign for TrieDataNode<D> {
     fn add_assign(&mut self, rhs: Self) {
         for (char, mut rhs_next_node) in rhs.children.into_iter() {
             // Does self contain the character?
-            match self.children.remove(&*char) {
+            match self.children.remove(char) {
                 // The whole node is removed, as owned, operated on and returned in self's children.
                 Some(mut self_next_node) => {
                     // Edge case: associate self node if the other node is also associated
@@ -254,12 +292,12 @@ impl<D> ops::AddAssign for TrieDataNode<D> {
                     }
 
                     self_next_node += rhs_next_node;
-                    self.children.insert(char, self_next_node);
+                    self.children.insert_direct(char, self_next_node);
                 }
                 // Self doesn't contain the character, no conflict arises.
                 // The whole 'rhs' node is just moved from 'rhs' into self.
                 None => {
-                    self.children.insert(char, rhs_next_node);
+                    self.children.insert_direct(char, rhs_next_node);
                 }
             }
         }
@@ -270,9 +308,7 @@ impl<D: PartialEq> PartialEq for TrieDataNode<D> {
     /// Operation == can be applied only to TrieNodes whose data implements PartialEq.
     fn eq(&self, other: &Self) -> bool {
         // If keys aren't equal, nodes aren't equal.
-        if !(self.children.len() == other.children.len()
-            && self.children.keys().all(|k| other.children.contains_key(k)))
-        {
+        if !self.children.has_same_keys(&other.children) {
             return false;
         }
 
@@ -292,7 +328,20 @@ impl<D: PartialEq> PartialEq for TrieDataNode<D> {
         // Every child node that has the same key (character) must be equal.
         self.children
             .iter()
-            .map(|(char, self_child)| (self_child, other.children.get(char).unwrap()))
+            .map(|(char, self_child)| (self_child, other.children.get(*char).unwrap()))
             .all(|(self_child, other_child)| other_child == self_child)
+    }
+}
+
+impl<D: Debug> Debug for TrieDataNode<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_struct("Node");
+
+        if let Some(data) = &self.word_end_data {
+            s.field("data", &data);
+        }
+
+        s.field("children", &self.children);
+        s.finish()
     }
 }

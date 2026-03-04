@@ -1,13 +1,12 @@
 use crate::trie::get_characters;
 use crate::trie_node::TrieDataNode;
-use arrayvec::ArrayString;
 use std::cmp::Ordering;
-use std::ops;
+use std::fmt::Debug;
+use std::{fmt, ops};
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -16,6 +15,12 @@ use serde_crate::{Deserialize, Serialize};
 pub struct DataTrie<D> {
     root: TrieDataNode<D>,
     len: usize,
+}
+
+impl<D> Default for DataTrie<D> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<D> DataTrie<D> {
@@ -39,14 +44,14 @@ impl<D> DataTrie<D> {
     /// assert_eq!(vec![String::from("word1")], trie.get_all());
     /// ```
     pub fn insert(&mut self, word: &str, associated_data: D) {
-        let characters = get_characters(word);
         let mut current = &mut self.root;
 
-        for character in characters {
-            current = current
-                .children
-                .entry(ArrayString::from(character).unwrap())
-                .or_insert_with(TrieDataNode::new);
+        for character in get_characters(word) {
+            if current.children.get_mut(character).is_none() {
+                current.children.insert_new(character);
+            }
+
+            current = current.children.get_mut(character).unwrap();
         }
 
         if !current.is_associated() {
@@ -76,14 +81,14 @@ impl<D> DataTrie<D> {
     /// assert_eq!(vec![&"somedata"], trie.get_data("word1", false).unwrap());
     /// ```
     pub fn insert_no_data(&mut self, word: &str) {
-        let characters = get_characters(word);
         let mut current = &mut self.root;
 
-        for character in characters {
-            current = current
-                .children
-                .entry(ArrayString::from(character).unwrap())
-                .or_insert_with(TrieDataNode::new);
+        for character in get_characters(word) {
+            if current.children.get_mut(character).is_none() {
+                current.children.insert_new(character);
+            }
+
+            current = current.children.get_mut(character).unwrap();
         }
 
         if !current.is_associated() {
@@ -204,7 +209,7 @@ impl<D> DataTrie<D> {
     pub fn get_data(&self, query: &str, soft_match: bool) -> Option<Vec<&D>> {
         let current = self.get_final_node(query)?;
 
-        return if soft_match {
+        if soft_match {
             let mut soft_match_data = Vec::new();
             current.generate_all_data(&mut soft_match_data);
 
@@ -214,7 +219,7 @@ impl<D> DataTrie<D> {
                 .get_association()
                 .as_ref()
                 .map(|data_vec| data_vec.iter().collect())
-        };
+        }
     }
 
     /// Returns a vector of mutable references to data of some word that equals 'query'
@@ -249,7 +254,7 @@ impl<D> DataTrie<D> {
     pub fn get_data_mut(&mut self, query: &str, soft_match: bool) -> Option<Vec<&mut D>> {
         let current = self.get_final_node_mut(query)?;
 
-        return if soft_match {
+        if soft_match {
             let mut soft_match_data = Vec::new();
             current.generate_all_data_mut(&mut soft_match_data);
 
@@ -259,7 +264,7 @@ impl<D> DataTrie<D> {
                 .get_association_mut()
                 .as_mut()
                 .map(|data_vec| data_vec.iter_mut().collect())
-        };
+        }
     }
 
     /// Clears and returns data of some word. If the word is not found returns None.
@@ -314,14 +319,14 @@ impl<D> DataTrie<D> {
             current_node = match current_node.children.get(character) {
                 None => return None,
                 Some(trie_node) => {
-                    substring.push_str(character);
+                    substring.push(character);
                     trie_node
                 }
             }
         }
 
         let mut words_vec = Vec::new();
-        current_node.find_words(&substring, &mut words_vec);
+        current_node.find_words(&mut substring, &mut words_vec);
 
         Some(words_vec)
     }
@@ -345,7 +350,17 @@ impl<D> DataTrie<D> {
     /// ```
     pub fn get_longest(&self) -> Vec<String> {
         let mut words = Vec::new();
-        self.root.words_min_max("", &mut words, Ordering::Greater);
+        let mut collector = String::new();
+        let mut best_len = None;
+        self.root.words_min_max(
+            &mut collector,
+            0,
+            &mut words,
+            &mut best_len,
+            #[cfg(feature = "unicode")]
+            true,
+            Ordering::Greater,
+        );
         words
     }
 
@@ -368,7 +383,17 @@ impl<D> DataTrie<D> {
     /// ```
     pub fn get_shortest(&self) -> Vec<String> {
         let mut words = Vec::new();
-        self.root.words_min_max("", &mut words, Ordering::Less);
+        let mut collector = String::new();
+        let mut best_len = None;
+        self.root.words_min_max(
+            &mut collector,
+            0,
+            &mut words,
+            &mut best_len,
+            #[cfg(feature = "unicode")]
+            true,
+            Ordering::Less,
+        );
         words
     }
 
@@ -462,7 +487,7 @@ impl<D> DataTrie<D> {
     /// ```
     pub fn contains(&self, query: &str) -> bool {
         self.get_final_node(query)
-            .map_or(false, |node| node.is_associated())
+            .is_some_and(|node| node.is_associated())
     }
 
     /// Returns true if no words are in the trie.
@@ -509,10 +534,7 @@ impl<D> DataTrie<D> {
         let mut current = &self.root;
 
         for character in get_characters(query) {
-            current = match current.children.get(character) {
-                None => return None,
-                Some(next_node) => next_node,
-            }
+            current = current.children.get(character)?
         }
 
         Some(current)
@@ -523,10 +545,7 @@ impl<D> DataTrie<D> {
         let mut current = &mut self.root;
 
         for character in get_characters(query) {
-            current = match current.children.get_mut(character) {
-                None => return None,
-                Some(next_node) => next_node,
-            }
+            current = current.children.get_mut(character)?
         }
 
         Some(current)
@@ -633,5 +652,14 @@ impl<D: PartialEq> PartialEq for DataTrie<D> {
     /// ```
     fn eq(&self, other: &Self) -> bool {
         self.len == other.len && self.root == other.root
+    }
+}
+
+impl<D: Debug> Debug for DataTrie<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DataTrie")
+            .field("len", &self.len)
+            .field("root", &self.root)
+            .finish()
     }
 }

@@ -1,3 +1,4 @@
+#[cfg(feature = "data")]
 use basic_trie::DataTrie;
 use growable_bloom_filter::GrowableBloom;
 use peak_alloc::PeakAlloc;
@@ -5,6 +6,7 @@ use randomizer::Randomizer;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Instant;
+#[cfg(feature = "unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
 #[global_allocator]
@@ -42,6 +44,7 @@ pub fn generate_random_lines(x: usize, y: usize) -> BigData {
     }
 }
 
+#[cfg(feature = "data")]
 #[test]
 fn overall_data() {
     let number_of_words = 500_000;
@@ -94,6 +97,7 @@ fn overall_data() {
     println!("Operations time: {:.2?}", elapsed);
 }
 
+#[cfg(feature = "data")]
 #[test]
 fn clearing_data() {
     let number_of_words = 500_000;
@@ -131,6 +135,7 @@ fn clearing_data() {
     );
 }
 
+#[cfg(feature = "data")]
 #[test]
 fn add_op_data_1() {
     let number_of_words = 100_000;
@@ -195,6 +200,7 @@ fn add_op_data_1() {
     );
 }
 
+#[cfg(feature = "data")]
 #[test]
 fn add_op_data_2() {
     let number_of_words = 100_000;
@@ -252,6 +258,7 @@ fn add_op_data_2() {
     );
 }
 
+#[cfg(feature = "data")]
 #[test]
 fn equals_data() {
     let number_of_words = 100_000;

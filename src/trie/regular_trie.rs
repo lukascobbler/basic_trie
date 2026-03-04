@@ -1,25 +1,25 @@
 use std::cmp::Ordering;
 use std::ops;
 
-use arrayvec::ArrayString;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
 use crate::trie::get_characters;
 use crate::trie_node::TrieDatalessNode;
 
-#[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
+#[derive(Debug, Default)]
 pub struct Trie {
     root: TrieDatalessNode,
     len: usize,
 }
 
 impl Trie {
+    /// Returns a new instance of the trie.
     pub fn new() -> Self {
         Trie {
             root: TrieDatalessNode::new(),
@@ -39,14 +39,14 @@ impl Trie {
     /// assert_eq!(vec![String::from("word1")], trie.get_all());
     /// ```
     pub fn insert(&mut self, word: &str) {
-        let characters = get_characters(word);
         let mut current = &mut self.root;
 
-        for character in characters {
-            current = current
-                .children
-                .entry(ArrayString::from(character).unwrap())
-                .or_default();
+        for character in get_characters(word) {
+            if current.children.get_mut(character).is_none() {
+                current.children.insert_new(character);
+            }
+
+            current = current.children.get_mut(character).unwrap();
         }
 
         if !current.is_associated() {
@@ -151,14 +151,14 @@ impl Trie {
             current_node = match current_node.children.get(character) {
                 None => return None,
                 Some(trie_node) => {
-                    substring.push_str(character);
+                    substring.push(character);
                     trie_node
                 }
             }
         }
 
         let mut words_vec = Vec::new();
-        current_node.find_words(&substring, &mut words_vec);
+        current_node.find_words(&mut substring, &mut words_vec);
 
         Some(words_vec)
     }
@@ -182,7 +182,17 @@ impl Trie {
     /// ```
     pub fn get_longest(&self) -> Vec<String> {
         let mut words = Vec::new();
-        self.root.words_min_max("", &mut words, Ordering::Greater);
+        let mut collector = String::new();
+        let mut best_len = None;
+        self.root.words_min_max(
+            &mut collector,
+            0,
+            &mut words,
+            &mut best_len,
+            #[cfg(feature = "unicode")]
+            true,
+            Ordering::Greater,
+        );
         words
     }
 
@@ -205,7 +215,17 @@ impl Trie {
     /// ```
     pub fn get_shortest(&self) -> Vec<String> {
         let mut words = Vec::new();
-        self.root.words_min_max("", &mut words, Ordering::Less);
+        let mut collector = String::new();
+        let mut best_len = None;
+        self.root.words_min_max(
+            &mut collector,
+            0,
+            &mut words,
+            &mut best_len,
+            #[cfg(feature = "unicode")]
+            true,
+            Ordering::Less,
+        );
         words
     }
 
@@ -299,7 +319,7 @@ impl Trie {
     /// ```
     pub fn contains(&self, query: &str) -> bool {
         self.get_final_node(query)
-            .map_or(false, |node| node.is_associated())
+            .is_some_and(|node| node.is_associated())
     }
 
     /// Returns true if no words are in the trie.
@@ -346,10 +366,7 @@ impl Trie {
         let mut current = &self.root;
 
         for character in get_characters(query) {
-            current = match current.children.get(character) {
-                None => return None,
-                Some(next_node) => next_node,
-            }
+            current = current.children.get(character)?;
         }
 
         Some(current)
@@ -360,10 +377,7 @@ impl Trie {
         let mut current = &mut self.root;
 
         for character in get_characters(query) {
-            current = match current.children.get_mut(character) {
-                None => return None,
-                Some(next_node) => next_node,
-            }
+            current = current.children.get_mut(character)?;
         }
 
         Some(current)
